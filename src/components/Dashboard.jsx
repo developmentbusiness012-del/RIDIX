@@ -1,0 +1,608 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from "recharts";
+import {
+  Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
+  LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
+  Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
+} from "lucide-react";
+import { supabase } from "../supabaseClient";
+import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
+import TransactionForm from "./TransactionForm";
+import ImportCsv from "./ImportCsv";
+import MessagesPanel from "./MessagesPanel";
+import { exportExcel, exportPdf } from "../exportUtils";
+import { startPremiumCheckout } from "../payments";
+
+const monthKey = (d) => d.slice(0, 7);
+
+export default function Dashboard({ session, role, plan: initialPlan, isAdmin, onOpenAdmin }) {
+  const isOwner = role === "owner";
+  const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [filterPeriode, setFilterPeriode] = useState("mois");
+  const [filterType, setFilterType] = useState("tous");
+  const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showCompanyMenu, setShowCompanyMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
+  const [plan, setPlan] = useState(initialPlan);
+  const [employees, setEmployees] = useState([]);
+  const [showMessages, setShowMessages] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const company = companies.find((c) => c.id === activeId);
+
+  useEffect(() => {
+    (async () => {
+      const { count } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", session.user.id)
+        .eq("sender", "admin")
+        .eq("read_by_user", false);
+      setUnreadCount(count || 0);
+    })();
+  }, [session.user.id]);
+
+  // ---------- Chargement initial ----------
+  useEffect(() => {
+    (async () => {
+      const { data: comps, error } = await supabase.from("companies").select("*").order("created_at");
+      if (!error && comps) {
+        setCompanies(comps);
+        setActiveId(comps[0]?.id ?? null);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!isOwner || !activeId) { setEmployees([]); return; }
+    (async () => {
+      const { data } = await supabase.from("company_members").select("*").eq("company_id", activeId).order("created_at");
+      setEmployees(data || []);
+    })();
+  }, [activeId, isOwner, showSettings]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("company_id", activeId)
+        .order("date", { ascending: false });
+      setTransactions(data || []);
+    })();
+  }, [activeId]);
+
+  const refreshTransactions = useCallback(async () => {
+    const { data } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("company_id", activeId)
+      .order("date", { ascending: false });
+    setTransactions(data || []);
+  }, [activeId]);
+
+  const updateCompany = async (patch) => {
+    setSaveState("saving");
+    const { data, error } = await supabase.from("companies").update(patch).eq("id", activeId).select().single();
+    if (!error && data) {
+      setCompanies((prev) => prev.map((c) => (c.id === activeId ? data : c)));
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1200);
+    }
+  };
+
+  const createCompany = async () => {
+    if (plan === "freemium" && companies.length >= 2) {
+      alert("L'offre Freemium est limitée à 2 entreprises. Passez en Premium pour en créer davantage.");
+      setShowCompanyMenu(false);
+      setShowSettings(true);
+      return;
+    }
+    const name = prompt("Nom de la nouvelle entreprise ?", "Nouvelle entreprise");
+    if (!name) return;
+    const { data, error } = await supabase
+      .from("companies")
+      .insert({ owner_id: session.user.id, name, profil: "mixte", devise_base: "XAF" })
+      .select()
+      .single();
+    if (!error && data) {
+      setCompanies((prev) => [...prev, data]);
+      setActiveId(data.id);
+      setShowCompanyMenu(false);
+    }
+  };
+
+  const [planActionError, setPlanActionError] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const changePlan = async (nextPlan) => {
+    setPlanActionError(null);
+    if (nextPlan === "premium") {
+      setCheckoutLoading(true);
+      try {
+        await startPremiumCheckout(); // redirige vers Maketou
+      } catch (e) {
+        console.error(e);
+        setPlanActionError("Impossible de démarrer le paiement. Réessayez dans un instant.");
+        setCheckoutLoading(false);
+      }
+      return;
+    }
+    const { error } = await supabase.from("account_settings").update({ plan: nextPlan }).eq("user_id", session.user.id);
+    if (!error) setPlan(nextPlan);
+  };
+
+  const removeEmployee = async (id) => {
+    if (!confirm("Retirer cet employé de l'entreprise ?")) return;
+    const { error } = await supabase.from("company_members").delete().eq("id", id);
+    if (!error) setEmployees((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const addTransaction = async (tx) => {
+    const { data, error } = await supabase.from("transactions").insert({ ...tx, company_id: activeId }).select().single();
+    if (!error && data) {
+      setTransactions((prev) => [data, ...prev]);
+      setShowForm(false);
+    }
+  };
+
+  const importTransactions = async (rows) => {
+    const payload = rows.map((r) => ({ ...r, company_id: activeId }));
+    const { error } = await supabase.from("transactions").insert(payload);
+    if (!error) {
+      await refreshTransactions();
+      setShowImport(false);
+    }
+  };
+
+  const removeTransaction = async (id) => {
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (!error) setTransactions((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // ---------- Filtrage ----------
+  const filtered = useMemo(() => {
+    const now = new Date();
+    return transactions.filter((t) => {
+      if (filterType !== "tous" && t.type_op !== filterType) return false;
+      if (filterPeriode === "tout") return true;
+      const d = new Date(t.date);
+      if (filterPeriode === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      if (filterPeriode === "trimestre") {
+        const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+        return diffMonths >= 0 && diffMonths < 3;
+      }
+      if (filterPeriode === "annee") return d.getFullYear() === now.getFullYear();
+      return true;
+    });
+  }, [transactions, filterPeriode, filterType]);
+
+  const kpis = useMemo(() => {
+    const ca = filtered.filter((t) => t.sens === "recette").reduce((s, t) => s + Number(t.montant_base), 0);
+    const dep = filtered.filter((t) => t.sens === "depense").reduce((s, t) => s + Number(t.montant_base), 0);
+    const profit = ca - dep;
+    const marge = ca > 0 ? (profit / ca) * 100 : 0;
+    return { ca, dep, profit, marge };
+  }, [filtered]);
+
+  const evolution = useMemo(() => {
+    const map = {};
+    transactions.forEach((t) => {
+      const k = monthKey(t.date);
+      if (!map[k]) map[k] = { key: k, ca: 0, dep: 0 };
+      if (t.sens === "recette") map[k].ca += Number(t.montant_base);
+      else map[k].dep += Number(t.montant_base);
+    });
+    return Object.values(map)
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .slice(-6)
+      .map((m) => ({ ...m, mois: MOIS_FR[Number(m.key.slice(5, 7)) - 1], profit: m.ca - m.dep }));
+  }, [transactions]);
+
+  const repartitionDepenses = useMemo(() => {
+    const map = {};
+    filtered.filter((t) => t.sens === "depense").forEach((t) => {
+      map[t.categorie] = (map[t.categorie] || 0) + Number(t.montant_base);
+    });
+    return Object.entries(map).map(([categorie, montant]) => ({ categorie, montant })).sort((a, b) => b.montant - a.montant);
+  }, [filtered]);
+
+  const repartitionType = useMemo(() => {
+    const map = { local: 0, import: 0, export: 0, autre: 0 };
+    filtered.forEach((t) => { map[t.type_op] += Number(t.montant_base); });
+    return TYPES_OP.map((t) => ({ name: t.label, id: t.id, value: map[t.id] })).filter((x) => x.value > 0);
+  }, [filtered]);
+
+  if (loading || !company) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 gap-2">
+        <Loader2 className="animate-spin" size={20} /> Chargement du registre…
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+
+        {/* ---------- En-tête ---------- */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3 relative">
+            <div className="w-11 h-11 rounded-md bg-amber-400 text-slate-950 flex items-center justify-center font-serif text-xl font-bold shrink-0">
+              {company.name.trim().charAt(0).toUpperCase() || "M"}
+            </div>
+            <div>
+              {isOwner ? (
+                <button onClick={() => setShowCompanyMenu((v) => !v)} className="flex items-center gap-1.5 font-serif text-xl font-semibold text-slate-50">
+                  {company.name} <ChevronDown size={16} className="text-slate-500" />
+                </button>
+              ) : (
+                <span className="font-serif text-xl font-semibold text-slate-50">{company.name}</span>
+              )}
+              <p className="text-xs text-slate-400 tracking-wide uppercase">
+                {saveState === "saving" ? "enregistrement…" : isOwner ? "registre financier" : "registre financier · compte employé"}
+              </p>
+            </div>
+
+            {isOwner && showCompanyMenu && (
+              <div className="absolute top-14 left-0 w-64 bg-slate-900 border border-slate-800 rounded-md shadow-xl z-20 p-2">
+                {companies.map((c) => (
+                  <button key={c.id} onClick={() => { setActiveId(c.id); setShowCompanyMenu(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 ${c.id === activeId ? "bg-amber-400/10 text-amber-300" : "text-slate-300 hover:bg-slate-800"}`}>
+                    <Building2 size={14} /> {c.name}
+                  </button>
+                ))}
+                <button onClick={createCompany} className="w-full text-left px-3 py-2 rounded-md text-sm text-slate-400 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800 mt-1 pt-2">
+                  <Plus size={14} /> Nouvelle entreprise
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {isOwner ? (
+              <>
+                <select value={company.profil} onChange={(e) => updateCompany({ profil: e.target.value })}
+                  className="bg-slate-900 border border-slate-800 text-sm rounded-md px-3 py-2 text-slate-200">
+                  {PROFILS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+                <select value={company.devise_base} onChange={(e) => updateCompany({ devise_base: e.target.value })}
+                  className="bg-slate-900 border border-slate-800 text-sm rounded-md px-3 py-2 text-slate-200">
+                  {DEVISES.map((d) => <option key={d} value={d}>{d} (base)</option>)}
+                </select>
+              </>
+            ) : (
+              <span className="text-xs bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-slate-400">
+                {PROFILS.find((p) => p.id === company.profil)?.label} · {company.devise_base}
+              </span>
+            )}
+            <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2 transition-colors">
+              <Plus size={16} /> Écriture
+            </button>
+            {isOwner && (
+              <button onClick={() => setShowSettings(true)} className="text-slate-500 hover:text-slate-200 p-2" title="Paramètres">
+                <Settings size={16} />
+              </button>
+            )}
+            {isAdmin && (
+              <button onClick={onOpenAdmin} className="text-slate-500 hover:text-amber-300 p-2" title="Espace Admin">
+                <ShieldCheck size={16} />
+              </button>
+            )}
+            <button onClick={() => setShowMessages(true)} className="relative text-slate-500 hover:text-slate-200 p-2" title="Messagerie">
+              <MessageCircle size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-rose-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <button onClick={() => supabase.auth.signOut()} className="text-slate-500 hover:text-slate-200 p-2" title="Se déconnecter">
+              <LogOut size={16} />
+            </button>
+          </div>
+        </header>
+
+        {/* ---------- Bandeau restrictions employé ---------- */}
+        {!isOwner && (
+          <div className="mb-6 border border-indigo-800/50 bg-indigo-950/30 rounded-md px-4 py-3 flex items-start gap-2">
+            <ShieldAlert size={16} className="text-indigo-300 mt-0.5 shrink-0" />
+            <p className="text-xs text-indigo-200">
+              Compte employé : vous pouvez ajouter des écritures, importer un CSV et consulter les rapports.
+              Vous ne pouvez pas supprimer d'écritures ni modifier les paramètres de l'entreprise.
+            </p>
+          </div>
+        )}
+
+        {/* ---------- Bandeau manifeste ---------- */}
+        {transactions.length > 0 && (
+          <div className="mb-6 border border-slate-800 rounded-md bg-slate-900/60 overflow-hidden">
+            <div className="px-4 py-1.5 text-[10px] uppercase tracking-[0.2em] text-slate-500 border-b border-slate-800">Manifeste — dernières écritures</div>
+            <div className="flex gap-3 overflow-x-auto px-4 py-3">
+              {transactions.slice(0, 8).map((t) => (
+                <div key={t.id} className="shrink-0 border border-dashed rounded-md px-3 py-1.5 text-xs flex items-center gap-2" style={{ borderColor: PALETTE[t.type_op] }}>
+                  <span className="font-mono uppercase tracking-wide" style={{ color: PALETTE[t.type_op] }}>{t.type_op}</span>
+                  <span className="text-slate-400">{t.date}</span>
+                  <span className={t.sens === "recette" ? "text-emerald-400 font-mono" : "text-rose-400 font-mono"}>
+                    {t.sens === "recette" ? "+" : "−"}{formatMontant(t.montant, t.devise)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ---------- Filtres + actions ---------- */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
+          <div className="flex flex-wrap gap-2">
+            {[["mois", "Ce mois"], ["trimestre", "Trimestre"], ["annee", "Année"], ["tout", "Tout"]].map(([id, label]) => (
+              <button key={id} onClick={() => setFilterPeriode(id)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterPeriode === id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
+                {label}
+              </button>
+            ))}
+            <span className="w-px bg-slate-800 mx-1" />
+            <button onClick={() => setFilterType("tous")}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterType === "tous" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
+              Tous profils
+            </button>
+            {TYPES_OP.map((t) => (
+              <button key={t.id} onClick={() => setFilterType(t.id)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1 ${filterType === t.id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
+                <t.icon size={12} /> {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+              <UploadCloud size={13} /> Importer CSV
+            </button>
+            <button onClick={() => exportExcel(filtered, company)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+              <FileSpreadsheet size={13} /> Excel
+            </button>
+            <button onClick={() => exportPdf(filtered, company, kpis)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+              <FileText size={13} /> PDF
+            </button>
+          </div>
+        </div>
+
+        {/* ---------- KPI ---------- */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <KpiCard label="Chiffre d'affaires" value={formatMontant(kpis.ca, company.devise_base)} icon={Wallet} accent="border-l-emerald-400" />
+          <KpiCard label="Dépenses" value={formatMontant(kpis.dep, company.devise_base)} icon={TrendingDown} accent="border-l-rose-400" />
+          <KpiCard label="Profit net" value={formatMontant(kpis.profit, company.devise_base)} icon={TrendingUp} accent={kpis.profit >= 0 ? "border-l-amber-400" : "border-l-rose-500"} />
+          <KpiCard label="Marge" value={`${kpis.marge.toFixed(1)} %`} icon={Percent} accent="border-l-indigo-400" />
+        </div>
+
+        {/* ---------- Graphiques ---------- */}
+        <div className="grid lg:grid-cols-3 gap-4 mb-6">
+          <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-md p-4">
+            <h3 className="font-serif text-sm text-slate-300 mb-3">Évolution mensuelle</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={evolution}>
+                <defs>
+                  <linearGradient id="caGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="depGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fb7185" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#fb7185" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="mois" stroke="#64748b" fontSize={12} />
+                <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 12 }} formatter={(v, name) => [formatMontant(v, company.devise_base), name]} />
+                <Area type="monotone" dataKey="ca" name="CA" stroke="#34d399" fill="url(#caGrad)" strokeWidth={2} />
+                <Area type="monotone" dataKey="dep" name="Dépenses" stroke="#fb7185" fill="url(#depGrad)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4">
+            <h3 className="font-serif text-sm text-slate-300 mb-3">Répartition par profil</h3>
+            {repartitionType.length === 0 ? (
+              <p className="text-xs text-slate-500 mt-8 text-center">Aucune donnée sur la période</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={repartitionType} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={3}>
+                    {repartitionType.map((entry) => <Cell key={entry.id} fill={PALETTE[entry.id]} stroke="none" />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => formatMontant(v, company.devise_base)} contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4 mb-6">
+          <h3 className="font-serif text-sm text-slate-300 mb-3">Dépenses par catégorie</h3>
+          {repartitionDepenses.length === 0 ? (
+            <p className="text-xs text-slate-500 py-8 text-center">Aucune dépense sur la période</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={repartitionDepenses} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                <YAxis type="category" dataKey="categorie" stroke="#94a3b8" fontSize={11} width={150} />
+                <Tooltip formatter={(v) => formatMontant(v, company.devise_base)} contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="montant" fill="#fbbf24" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* ---------- Table ---------- */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-md overflow-hidden mb-10">
+          <h3 className="font-serif text-sm text-slate-300 px-4 pt-4 pb-2">Écritures ({filtered.length})</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-y border-slate-800">
+                  <th className="px-4 py-2 font-medium">Date</th>
+                  <th className="px-2 py-2 font-medium">Profil</th>
+                  <th className="px-2 py-2 font-medium">Catégorie</th>
+                  <th className="px-2 py-2 font-medium">Libellé</th>
+                  <th className="px-2 py-2 font-medium text-right">Montant</th>
+                  <th className="px-2 py-2 font-medium text-right">Contre-valeur</th>
+                  <th className="px-2 py-2 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="text-center text-slate-500 text-xs py-8">
+                    Le registre est vide pour cette sélection — ajoutez ou importez une écriture pour commencer.
+                  </td></tr>
+                )}
+                {filtered.map((t) => (
+                  <tr key={t.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
+                    <td className="px-4 py-2 font-mono text-xs text-slate-400">{t.date}</td>
+                    <td className="px-2 py-2">
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border" style={{ color: PALETTE[t.type_op], borderColor: PALETTE[t.type_op] }}>
+                        {t.type_op}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-slate-300">{t.categorie}</td>
+                    <td className="px-2 py-2 text-slate-400">{t.libelle || "—"}</td>
+                    <td className={`px-2 py-2 text-right font-mono ${t.sens === "recette" ? "text-emerald-400" : "text-rose-400"}`}>
+                      {t.sens === "recette" ? "+" : "−"}{formatMontant(t.montant, t.devise)}
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono text-slate-400 text-xs">{formatMontant(t.montant_base, company.devise_base)}</td>
+                    <td className="px-2 py-2 text-right">
+                      {isOwner && (
+                        <button onClick={() => removeTransaction(t.id)} className="text-slate-600 hover:text-rose-400">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {showForm && <TransactionForm deviseBase={company.devise_base} onClose={() => setShowForm(false)} onSubmit={addTransaction} />}
+      {showImport && <ImportCsv deviseBase={company.devise_base} onClose={() => setShowImport(false)} onImport={importTransactions} />}
+      {showSettings && (
+        <SettingsPanel
+          company={company}
+          plan={plan}
+          checkoutLoading={checkoutLoading}
+          planActionError={planActionError}
+          employees={employees}
+          onChangePlan={changePlan}
+          onRemoveEmployee={removeEmployee}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showMessages && (
+        <MessagesPanel session={session} onClose={() => setShowMessages(false)} onRead={() => setUnreadCount(0)} />
+      )}
+    </div>
+  );
+}
+
+function SettingsPanel({ company, plan, employees, onChangePlan, onRemoveEmployee, onClose, checkoutLoading, planActionError }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = async () => {
+    await navigator.clipboard.writeText(company.code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-t-xl sm:rounded-xl w-full sm:max-w-lg p-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-lg text-slate-50">Paramètres</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
+        </div>
+
+        <div className="mb-5">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Offre actuelle</p>
+          <div className="grid grid-cols-2 gap-2">
+            {PLANS.map((p) => (
+              <button key={p.id} onClick={() => onChangePlan(p.id)} disabled={checkoutLoading || plan === p.id}
+                className={`text-left rounded-md border px-3 py-2 text-sm disabled:opacity-60 flex items-center justify-between gap-2 ${plan === p.id ? "border-amber-400 bg-amber-400/10 text-amber-300" : "border-slate-700 text-slate-400"}`}>
+                <span>
+                  <span className="block font-medium">{p.label}</span>
+                  <span className="block text-[11px] text-slate-500">{p.id === "premium" && plan !== "premium" ? "Payer via Maketou" : p.tagline}</span>
+                </span>
+                {checkoutLoading && p.id === "premium" && plan !== "premium" && <Loader2 size={14} className="animate-spin shrink-0" />}
+              </button>
+            ))}
+          </div>
+          {planActionError && <p className="text-[11px] text-rose-400 mt-2">{planActionError}</p>}
+        </div>
+
+        <div className="mb-5">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Code entreprise</p>
+          <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-md px-3 py-2">
+            <span className="font-mono text-amber-300 tracking-widest flex-1">{company.code}</span>
+            <button onClick={copyCode} className="text-slate-400 hover:text-slate-200">
+              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Communiquez ce code à vos employés pour qu'ils rejoignent l'entreprise (offre Premium requise).
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5"><Users size={13} /> Employés ({employees.length})</p>
+          {plan !== "premium" ? (
+            <p className="text-xs text-slate-500 bg-slate-800/60 rounded-md px-3 py-2">Passez en Premium pour inviter des employés.</p>
+          ) : employees.length === 0 ? (
+            <p className="text-xs text-slate-500 bg-slate-800/60 rounded-md px-3 py-2">Aucun employé n'a encore rejoint cette entreprise.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {employees.map((e) => (
+                <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm">
+                  <span className="text-slate-300">{e.email || e.user_id}</span>
+                  <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-slate-800">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Restrictions employé</p>
+          <ul className="space-y-1">
+            {EMPLOYEE_RESTRICTIONS.map((r) => <li key={r} className="text-[11px] text-slate-500">• {r}</li>)}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, icon: Icon, accent }) {
+  return (
+    <div className={`bg-slate-900/60 border border-slate-800 border-l-4 ${accent} rounded-md p-4`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-slate-400 uppercase tracking-wide">{label}</span>
+        <Icon size={15} className="text-slate-500" />
+      </div>
+      <p className="font-mono text-lg sm:text-xl text-slate-50 tabular-nums truncate">{value}</p>
+    </div>
+  );
+}

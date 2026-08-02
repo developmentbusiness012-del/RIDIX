@@ -1,0 +1,282 @@
+import {
+  Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
+  UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
+} from "lucide-react";
+import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
+
+const FEATURES = [
+  {
+    icon: Wallet,
+    title: "Tableaux de bord financiers globaux",
+    desc: "Chiffre d'affaires, dépenses, profit net et marge — calculés en temps réel, sans tableur.",
+  },
+  {
+    icon: Layers,
+    title: "Adapté à tous les profils",
+    desc: "Commerçant local, importateur, exportateur ou mixte : chaque écriture est taguée par profil pour une vision claire de chaque activité.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Multi-devises intégré",
+    desc: `Saisissez vos opérations en ${DEVISES.join(", ")}… et suivez tout converti dans votre devise de référence.`,
+  },
+  {
+    icon: UploadCloud,
+    title: "Import CSV en masse",
+    desc: "Importez vos écritures existantes en quelques secondes grâce à un modèle prêt à l'emploi.",
+  },
+  {
+    icon: FileSpreadsheet,
+    title: "Exports Excel & PDF",
+    desc: "Générez des rapports professionnels pour votre comptable ou vos partenaires en un clic.",
+  },
+  {
+    icon: Building2,
+    title: "Plusieurs entreprises, un seul compte",
+    desc: "Gérez jusqu'à 2 entreprises en Freemium, ou un nombre illimité en Premium.",
+  },
+  {
+    icon: Users,
+    title: "Employés avec accès restreint",
+    desc: "Invitez votre équipe via un code entreprise unique, avec des permissions strictement encadrées.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Messagerie intégrée",
+    desc: "Échangez remarques et suggestions directement avec l'équipe, sans quitter l'application.",
+  },
+];
+
+const STEPS = [
+  { n: "01", title: "Créez votre compte", desc: "Indiquez le nom de votre entreprise. Aucune confirmation par email : l'accès est immédiat." },
+  { n: "02", title: "Enregistrez vos écritures", desc: "Ventes, achats, import, export — saisie manuelle ou import CSV, en quelques secondes." },
+  { n: "03", title: "Pilotez votre activité", desc: "Suivez votre CA, vos dépenses et votre marge en temps réel, exportez vos rapports quand vous en avez besoin." },
+];
+
+const LEDGER_ROWS = [
+  { tag: "export", label: "Conteneur cacao — Rotterdam", amount: "+8 200 EUR" },
+  { tag: "import", label: "Lot électroménager — Guangzhou", amount: "-15 000 USD" },
+  { tag: "local", label: "Ventes boutique — semaine", amount: "+2 450 000 XAF" },
+];
+
+const TAG_STYLES = {
+  export: "text-forest-bright",
+  import: "text-gold-bright",
+  local: "text-slate-400",
+};
+
+export default function Landing({ onEnter }) {
+  return (
+    <div id="top" className="min-h-screen bg-ink text-slate-100 font-sans">
+      {/* ---------- Nav ---------- */}
+      <header className="border-b border-white/10 sticky top-0 bg-ink/90 backdrop-blur z-30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <a href="#top" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            <div className="w-8 h-8 rounded-md bg-gold text-ink flex items-center justify-center font-serif text-lg font-bold">R</div>
+            <span className="font-serif text-lg text-slate-50 tracking-tight">RIDIX FINANCE</span>
+          </a>
+          <nav className="hidden md:flex items-center gap-6 text-sm text-slate-400">
+            <a href="#fonctionnalites" className="hover:text-slate-100">Fonctionnalités</a>
+            <a href="#offres" className="hover:text-slate-100">Offres</a>
+            <a href="#comment" className="hover:text-slate-100">Comment ça marche</a>
+          </nav>
+          <div className="flex items-center gap-2">
+            <button onClick={() => onEnter("signin")} className="text-sm text-slate-300 hover:text-slate-50 px-3 py-2">
+              Se connecter
+            </button>
+            <button onClick={() => onEnter("signup")} className="text-sm bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-4 py-2 transition-colors">
+              Créer un compte
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ---------- Hero ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-20 grid lg:grid-cols-2 gap-12 items-center">
+        <div>
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest-bright border border-forest/40 bg-forest/10 rounded-full px-3 py-1">
+            Commerçants · Importateurs · Exportateurs
+          </span>
+          <h1 className="font-serif font-semibold text-4xl sm:text-5xl text-slate-50 leading-[1.08] mt-5 mb-5">
+            Votre grand livre, tenu au franc près — quel que soit votre commerce.
+          </h1>
+          <p className="text-slate-400 text-base leading-relaxed mb-8 max-w-md">
+            Un registre pensé pour le commerce local comme pour le négoce international : suivez votre chiffre d'affaires,
+            vos dépenses et votre marge, gérez plusieurs devises et plusieurs entreprises, le tout depuis un seul tableau de bord.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => onEnter("signup")} className="flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-5 py-3 text-sm transition-colors">
+              Créer mon compte gratuitement <ArrowRight size={16} />
+            </button>
+            <button onClick={() => onEnter("employee")} className="flex items-center gap-2 border border-white/15 hover:border-white/30 text-slate-300 rounded-md px-5 py-3 text-sm transition-colors">
+              <Users size={15} /> Rejoindre en tant qu'employé
+            </button>
+          </div>
+          <p className="text-xs text-slate-600 mt-4 font-mono">Aucune carte bancaire requise · Accès immédiat, sans confirmation d'email.</p>
+        </div>
+
+        {/* Aperçu visuel type "grand livre" */}
+        <div className="border border-white/10 rounded-xl bg-white/[0.03] overflow-hidden shadow-2xl shadow-black/40">
+          <div className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-500 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+            <span>Maison de Négoce Douala</span>
+            <span className="text-forest-bright flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-forest-bright inline-block" /> en ligne
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-4">
+            <PreviewKpi label="Chiffre d'affaires" value="8 450 000 XAF" tone="forest" />
+            <PreviewKpi label="Dépenses" value="5 120 000 XAF" tone="rose" />
+            <PreviewKpi label="Profit net" value="3 330 000 XAF" tone="gold" />
+            <PreviewKpi label="Marge" value="39,4 %" tone="indigo" />
+          </div>
+          <div className="px-4 pb-4 space-y-2">
+            {LEDGER_ROWS.map((row) => (
+              <div key={row.label} className="flex items-center justify-between text-xs bg-white/[0.04] rounded-md px-3 py-2.5">
+                <span className="flex items-center gap-2 text-slate-400">
+                  <span className={`uppercase font-mono text-[10px] ${TAG_STYLES[row.tag]}`}>{row.tag}</span>
+                  {row.label}
+                </span>
+                <span className={`font-mono ${row.amount.startsWith("+") ? "text-forest-bright" : "text-rose-400"}`}>{row.amount}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Fonctionnalités ---------- */}
+      <section id="fonctionnalites" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-white/10">
+        <div className="text-center mb-12">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Fonctionnalités</span>
+          <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3 mb-3">Tout ce qu'il faut pour piloter votre activité</h2>
+          <p className="text-slate-400 text-sm max-w-xl mx-auto">
+            Que vous vendiez au comptoir, importiez des conteneurs ou exportiez vos produits, le registre s'adapte à votre réalité.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="bg-white/[0.03] border border-white/10 rounded-lg p-5 hover:border-gold/30 transition-colors">
+              <f.icon size={20} className="text-gold-bright mb-3" />
+              <h3 className="font-serif text-sm text-slate-100 mb-1.5">{f.title}</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------- Profils ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-white/10">
+        <div className="text-center mb-10">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Avantages</span>
+          <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3">Un seul outil, tous les profils de commerçants</h2>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <ProfileCard icon={Store} title="Commerçant local" desc="Suivez vos ventes et dépenses courantes, sans complexité inutile." />
+          <ProfileCard icon={Package} title="Importateur" desc="Suivez vos coûts d'achat, douane, transport et marges à l'unité près." />
+          <ProfileCard icon={Ship} title="Exportateur" desc="Pilotez vos ventes à l'international en devises multiples, converties automatiquement." />
+        </div>
+      </section>
+
+      {/* ---------- Comment ça marche ---------- */}
+      <section id="comment" className="bg-white/[0.02] border-y border-white/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+          <div className="text-center mb-12">
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Comment ça marche</span>
+            <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3">Opérationnel en trois étapes</h2>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {STEPS.map((s) => (
+              <div key={s.n} className="border-t-2 border-gold/40 pt-5">
+                <span className="font-mono text-3xl text-gold-bright/50">{s.n}</span>
+                <h3 className="font-serif text-lg text-slate-100 mt-2 mb-2">{s.title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Offres ---------- */}
+      <section id="offres" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-b border-white/10">
+        <div className="text-center mb-10">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Tarifs</span>
+          <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3 mb-3">Une offre pour chaque étape de votre croissance</h2>
+          <p className="text-slate-400 text-sm">Commencez gratuitement, passez à Premium quand votre équipe grandit.</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-5 mb-8">
+          {PLANS.map((p) => (
+            <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.id === "premium" ? "border-gold bg-gold/5" : "border-white/10 bg-white/[0.03]"}`}>
+              <div className="flex items-baseline justify-between mb-1">
+                <h3 className="font-serif font-semibold text-xl text-slate-50">{p.label}</h3>
+                <span className="text-sm font-mono text-gold-bright">{p.price}</span>
+              </div>
+              <p className="text-xs text-slate-400 mb-4">{p.tagline}</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
+                    <Check size={15} className="text-forest-bright mt-0.5 shrink-0" /> {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => onEnter("signup")}
+                className={`w-full rounded-md py-2.5 text-sm font-semibold transition-colors ${p.id === "premium" ? "bg-gold hover:bg-gold-bright text-ink" : "bg-white/10 hover:bg-white/15 text-slate-100"}`}
+              >
+                Commencer avec {p.label}
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white/[0.03] border border-white/10 rounded-lg p-5">
+          <h4 className="font-serif text-sm text-slate-100 mb-3 flex items-center gap-2"><ShieldCheck size={15} className="text-gold-bright" /> Accès employé encadré (offre Premium)</h4>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wide text-forest-bright mb-2">Un employé peut</p>
+              <ul className="space-y-1">
+                {EMPLOYEE_ALLOWED.map((t) => <li key={t} className="text-xs text-slate-400">• {t}</li>)}
+              </ul>
+            </div>
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wide text-rose-400 mb-2">Un employé ne peut pas</p>
+              <ul className="space-y-1">
+                {EMPLOYEE_RESTRICTIONS.map((t) => <li key={t} className="text-xs text-slate-500">• {t}</li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- CTA final ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <h2 className="font-serif font-semibold text-3xl text-slate-50 mb-3">Prêt à voir clair dans vos finances ?</h2>
+        <p className="text-slate-400 text-sm mb-6">Créez votre compte en moins d'une minute, sans engagement.</p>
+        <button onClick={() => onEnter("signup")} className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-6 py-3 text-sm transition-colors">
+          Créer mon compte gratuitement <ArrowRight size={16} />
+        </button>
+      </section>
+
+      <footer className="border-t border-white/10 py-8 text-center text-xs text-slate-600 font-mono">
+        RIDIX FINANCE — pensé pour les commerçants, importateurs et exportateurs.
+      </footer>
+    </div>
+  );
+}
+
+function PreviewKpi({ label, value, tone }) {
+  const colors = { forest: "border-l-forest-bright", rose: "border-l-rose-400", gold: "border-l-gold-bright", indigo: "border-l-indigo-400" };
+  return (
+    <div className={`bg-white/[0.04] border-l-4 ${colors[tone]} rounded-md p-3`}>
+      <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1 font-mono">{label}</p>
+      <p className="font-mono text-sm text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+function ProfileCard({ icon: Icon, title, desc }) {
+  return (
+    <div className="border border-white/10 rounded-lg p-6 bg-white/[0.03] text-center">
+      <Icon size={22} className="text-gold-bright mx-auto mb-3" />
+      <h3 className="font-serif text-base text-slate-100 mb-2">{title}</h3>
+      <p className="text-xs text-slate-400 leading-relaxed">{desc}</p>
+    </div>
+  );
+}
