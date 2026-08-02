@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { Sparkles, AlertTriangle, Loader2, Trophy, Activity } from "lucide-react";
+import { Sparkles, AlertTriangle, Loader2, Trophy, Activity, FileText } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant, MOIS_FR, TYPES_OP } from "../constants";
+import { exportDossierFinancement } from "../exportUtils";
 import { PremiumTeaser } from "./StockPanel";
 
-export default function IntelligencePanel({ companyId, plan, deviseBase, transactions, onUpgrade, checkoutLoading }) {
+export default function IntelligencePanel({ companyId, plan, deviseBase, transactions, company, onUpgrade, checkoutLoading }) {
   const [products, setProducts] = useState([]);
   const [credits, setCredits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,16 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
 
   return (
     <div className="space-y-5 mb-10">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-xs text-slate-500 max-w-md">Ces indicateurs alimentent aussi votre dossier de financement, prêt à partager avec une banque ou un investisseur.</p>
+        <button
+          onClick={() => exportDossierFinancement(transactions, products, credits, company, analysis)}
+          className="flex items-center gap-1.5 bg-slate-100 hover:bg-white text-slate-900 font-medium text-sm rounded-md px-3 py-2 shrink-0"
+        >
+          <FileText size={15} /> Dossier de financement (PDF)
+        </button>
+      </div>
+
       <div className="bg-slate-900/60 border border-slate-800 rounded-md p-6 flex flex-col sm:flex-row items-center gap-6">
         <ScoreGauge score={score} />
         <div className="flex-1 w-full">
@@ -147,7 +158,7 @@ function scoreLabel(score) {
   return "Situation à risque — une attention immédiate est nécessaire.";
 }
 
-function computeAnalysis(transactions, products, credits, deviseBase) {
+export function computeAnalysis(transactions, products, credits, deviseBase) {
   const now = new Date();
 
   const recentTx = transactions.filter((t) => {

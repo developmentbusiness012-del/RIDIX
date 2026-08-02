@@ -536,7 +536,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
         )}
 
         {activeTab === "intelligence" && (
-          <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
         )}
       </div>
 

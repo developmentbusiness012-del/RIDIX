@@ -58,6 +58,7 @@ export const PLANS = [
       "Gestion des stocks avec alertes de rupture",
       "Suivi des crédits clients et dettes fournisseurs",
       "Score de santé financière et prévisions de trésorerie",
+      "Dossier de financement PDF, prêt pour votre banque",
       "Employés illimités, connectés via le code entreprise",
     ],
   },

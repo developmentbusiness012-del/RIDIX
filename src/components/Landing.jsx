@@ -1,7 +1,7 @@
 import {
   Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
-  Boxes, HandCoins, Lock, Sparkles,
+  Boxes, HandCoins, Lock, Sparkles, FileText,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 
@@ -27,6 +27,12 @@ const FEATURES = [
     icon: Sparkles,
     title: "Intelligence financière",
     desc: "Score de santé financière, détection d'anomalies et prévision de trésorerie — pour décider avant qu'il ne soit trop tard.",
+    premium: true,
+  },
+  {
+    icon: FileText,
+    title: "Dossier de financement",
+    desc: "Un document professionnel prêt à partager avec une banque ou un investisseur : historique, indicateurs de fiabilité, projections.",
     premium: true,
   },
   {
