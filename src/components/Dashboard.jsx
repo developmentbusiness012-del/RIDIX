@@ -281,18 +281,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
-            {isOwner ? (
-              <>
-                <select value={company.profil} onChange={(e) => updateCompany({ profil: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 text-sm rounded-md px-3 py-2 text-slate-200">
-                  {PROFILS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-                </select>
-                <select value={company.devise_base} onChange={(e) => updateCompany({ devise_base: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 text-sm rounded-md px-3 py-2 text-slate-200">
-                  {DEVISES.map((d) => <option key={d} value={d}>{d} (base)</option>)}
-                </select>
-              </>
-            ) : (
+            {!isOwner && (
               <span className="text-xs bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-slate-400">
                 {PROFILS.find((p) => p.id === company.profil)?.label} · {company.devise_base}
               </span>
@@ -329,11 +318,11 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
           {[
             { id: "bord", label: "Tableau de bord", icon: null, locked: false },
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
-            { id: "credits", label: "Crédits & dettes", icon: HandCoins, locked: plan !== "premium" },
+            { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
             { id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" },
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 text-sm px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${activeTab === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+              className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${activeTab === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
               {tab.icon && <tab.icon size={14} />}
               {tab.label}
               {tab.locked && <Lock size={11} className="text-amber-400/70" />}
@@ -372,36 +361,39 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
           </div>
         )}
 
-        {/* ---------- Filtres + actions ---------- */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
-          <div className="flex flex-wrap gap-2">
+        {/* ---------- Filtres ---------- */}
+        <div className="mb-3">
+          <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
             {[["jour", "Aujourd'hui"], ["semaine", "Semaine"], ["mois", "Ce mois"], ["trimestre", "Trimestre"], ["annee", "Année"], ["tout", "Tout"]].map(([id, label]) => (
               <button key={id} onClick={() => setFilterPeriode(id)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterPeriode === id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
+                className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filterPeriode === id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
                 {label}
               </button>
             ))}
-            <span className="w-px bg-slate-800 mx-1" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 mb-5">
+          <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
             <button onClick={() => setFilterType("tous")}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterType === "tous" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
+              className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filterType === "tous" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
               Tous profils
             </button>
             {TYPES_OP.map((t) => (
               <button key={t.id} onClick={() => setFilterType(t.id)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1 ${filterType === t.id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
+                className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1 ${filterType === t.id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
                 <t.icon size={12} /> {t.label}
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
-              <UploadCloud size={13} /> Importer CSV
+          <div className="flex gap-1.5 shrink-0">
+            <button onClick={() => setShowImport(true)} title="Importer CSV" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+              <UploadCloud size={13} /> <span className="hidden sm:inline">Importer</span>
             </button>
-            <button onClick={() => exportExcel(filtered, company)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
-              <FileSpreadsheet size={13} /> Excel
+            <button onClick={() => exportExcel(filtered, company)} title="Exporter en Excel" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+              <FileSpreadsheet size={13} /> <span className="hidden sm:inline">Excel</span>
             </button>
-            <button onClick={() => exportPdf(filtered, company, kpis)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
-              <FileText size={13} /> PDF
+            <button onClick={() => exportPdf(filtered, company, kpis)} title="Exporter en PDF" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+              <FileText size={13} /> <span className="hidden sm:inline">PDF</span>
             </button>
           </div>
         </div>
@@ -551,6 +543,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
           employees={employees}
           onChangePlan={changePlan}
           onRemoveEmployee={removeEmployee}
+          onUpdateCompany={updateCompany}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -561,7 +554,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
   );
 }
 
-function SettingsPanel({ company, plan, employees, onChangePlan, onRemoveEmployee, onClose, checkoutLoading, planActionError }) {
+function SettingsPanel({ company, plan, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, checkoutLoading, planActionError }) {
   const [copied, setCopied] = useState(false);
 
   const copyCode = async () => {
@@ -576,6 +569,26 @@ function SettingsPanel({ company, plan, employees, onChangePlan, onRemoveEmploye
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-serif text-lg text-slate-50">Paramètres</h3>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
+        </div>
+
+        <div className="mb-5">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[11px] text-slate-500 block mb-1">Profil</label>
+              <select value={company.profil} onChange={(e) => onUpdateCompany({ profil: e.target.value })}
+                className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
+                {PROFILS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-slate-500 block mb-1">Devise de base</label>
+              <select value={company.devise_base} onChange={(e) => onUpdateCompany({ devise_base: e.target.value })}
+                className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
+                {DEVISES.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="mb-5">

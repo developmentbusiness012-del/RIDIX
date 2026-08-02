@@ -97,20 +97,20 @@ export default function Landing({ onEnter }) {
       {/* ---------- Nav ---------- */}
       <header className="border-b border-white/10 sticky top-0 bg-ink/90 backdrop-blur z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <a href="#top" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-            <div className="w-8 h-8 rounded-md bg-gold text-ink flex items-center justify-center font-serif text-lg font-bold">R</div>
-            <span className="font-serif text-lg text-slate-50 tracking-tight">RIDIX FINANCE</span>
+          <a href="#top" className="flex items-center gap-2 hover:opacity-90 transition-opacity shrink-0">
+            <div className="w-8 h-8 rounded-md bg-gold text-ink flex items-center justify-center font-serif text-lg font-bold shrink-0">R</div>
+            <span className="font-serif text-base sm:text-lg text-slate-50 tracking-tight whitespace-nowrap">RIDIX FINANCE</span>
           </a>
           <nav className="hidden md:flex items-center gap-6 text-sm text-slate-400">
             <a href="#fonctionnalites" className="hover:text-slate-100">Fonctionnalités</a>
             <a href="#offres" className="hover:text-slate-100">Offres</a>
             <a href="#comment" className="hover:text-slate-100">Comment ça marche</a>
           </nav>
-          <div className="flex items-center gap-2">
-            <button onClick={() => onEnter("signin")} className="text-sm text-slate-300 hover:text-slate-50 px-3 py-2">
-              Se connecter
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <button onClick={() => onEnter("signin")} className="text-xs sm:text-sm text-slate-300 hover:text-slate-50 px-2 sm:px-3 py-2 whitespace-nowrap">
+              Connexion
             </button>
-            <button onClick={() => onEnter("signup")} className="text-sm bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-4 py-2 transition-colors">
+            <button onClick={() => onEnter("signup")} className="text-xs sm:text-sm bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-3 sm:px-4 py-2 transition-colors whitespace-nowrap">
               Créer un compte
             </button>
           </div>
