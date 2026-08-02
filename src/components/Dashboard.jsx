@@ -7,12 +7,15 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
+  Boxes, HandCoins, Lock,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
 import TransactionForm from "./TransactionForm";
 import ImportCsv from "./ImportCsv";
 import MessagesPanel from "./MessagesPanel";
+import StockPanel from "./StockPanel";
+import CreditsPanel from "./CreditsPanel";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
 
@@ -35,6 +38,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
   const [employees, setEmployees] = useState([]);
   const [showMessages, setShowMessages] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activeTab, setActiveTab] = useState("bord");
 
   const company = companies.find((c) => c.id === activeId);
 
@@ -319,12 +323,30 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
           </div>
         </header>
 
+        {/* ---------- Navigation onglets ---------- */}
+        <div className="flex gap-1 mb-6 border-b border-slate-800 overflow-x-auto">
+          {[
+            { id: "bord", label: "Tableau de bord", icon: null, locked: false },
+            { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
+            { id: "credits", label: "Crédits & dettes", icon: HandCoins, locked: plan !== "premium" },
+          ].map((tab) => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 text-sm px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${activeTab === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+              {tab.icon && <tab.icon size={14} />}
+              {tab.label}
+              {tab.locked && <Lock size={11} className="text-amber-400/70" />}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "bord" && (
+        <>
         {/* ---------- Bandeau restrictions employé ---------- */}
         {!isOwner && (
           <div className="mb-6 border border-indigo-800/50 bg-indigo-950/30 rounded-md px-4 py-3 flex items-start gap-2">
             <ShieldAlert size={16} className="text-indigo-300 mt-0.5 shrink-0" />
             <p className="text-xs text-indigo-200">
-              Compte employé : vous pouvez ajouter des écritures, importer un CSV et consulter les rapports.
+              Compte employé : vous pouvez ajouter des écritures, gérer le stock, enregistrer des crédits et importer un CSV.
               Vous ne pouvez pas supprimer d'écritures ni modifier les paramètres de l'entreprise.
             </p>
           </div>
@@ -500,6 +522,16 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
             </table>
           </div>
         </div>
+        </>
+        )}
+
+        {activeTab === "stock" && (
+          <StockPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+        )}
+
+        {activeTab === "credits" && (
+          <CreditsPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+        )}
       </div>
 
       {showForm && <TransactionForm deviseBase={company.devise_base} onClose={() => setShowForm(false)} onSubmit={addTransaction} />}

@@ -41,8 +41,8 @@ export const PLANS = [
     features: [
       "Jusqu'à 2 entreprises",
       "1 seul utilisateur (vous)",
-      "Contrôle complet : écritures, import CSV, exports Excel/PDF",
-      "Tableaux de bord et graphiques illimités",
+      "Recettes, dépenses, import CSV, exports Excel/PDF",
+      "Tableau de bord (aujourd'hui, semaine, mois, année)",
     ],
   },
   {
@@ -52,12 +52,12 @@ export const PLANS = [
     period: "/ mois",
     promo: true,
     promoLabel: "🔥 Offre de lancement",
-    tagline: "Pour gérer une équipe",
+    tagline: "Pour piloter et faire grandir votre commerce",
     features: [
-      "Entreprises illimitées",
+      "Tout Freemium, sans limite d'entreprises",
+      "Gestion des stocks avec alertes de rupture",
+      "Suivi des crédits clients et dettes fournisseurs",
       "Employés illimités, connectés via le code entreprise",
-      "Tout Freemium, plus la gestion d'équipe",
-      "Restrictions employé configurables (voir détail)",
     ],
   },
 ];
@@ -76,6 +76,8 @@ export const EMPLOYEE_RESTRICTIONS = [
 export const EMPLOYEE_ALLOWED = [
   "Ajouter des écritures (recettes et dépenses)",
   "Importer des écritures en masse via CSV",
+  "Gérer le stock (ajouter des produits, ajuster les quantités)",
+  "Enregistrer des crédits clients et dettes fournisseurs",
   "Consulter le tableau de bord, les graphiques et les rapports",
   "Exporter les écritures en Excel ou PDF",
 ];

@@ -1,6 +1,7 @@
 import {
   Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
+  Boxes, HandCoins, Lock,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 
@@ -8,7 +9,19 @@ const FEATURES = [
   {
     icon: Wallet,
     title: "Tableaux de bord financiers globaux",
-    desc: "Chiffre d'affaires, dépenses, profit net et marge — calculés en temps réel, sans tableur.",
+    desc: "Chiffre d'affaires, dépenses, profit net et marge — au jour, à la semaine, au mois ou à l'année, en temps réel.",
+  },
+  {
+    icon: Boxes,
+    title: "Gestion des stocks",
+    desc: "Suivez vos quantités produit par produit et recevez une alerte dès qu'un article approche de la rupture.",
+    premium: true,
+  },
+  {
+    icon: HandCoins,
+    title: "Crédits & dettes",
+    desc: "Ventes à crédit clients, dettes fournisseurs, paiements partiels — ne perdez plus jamais le fil d'une créance.",
+    premium: true,
   },
   {
     icon: Layers,
@@ -39,6 +52,7 @@ const FEATURES = [
     icon: Users,
     title: "Employés avec accès restreint",
     desc: "Invitez votre équipe via un code entreprise unique, avec des permissions strictement encadrées.",
+    premium: true,
   },
   {
     icon: MessageCircle,
@@ -154,12 +168,33 @@ export default function Landing({ onEnter }) {
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {FEATURES.map((f) => (
-            <div key={f.title} className="bg-white/[0.03] border border-white/10 rounded-lg p-5 hover:border-gold/30 transition-colors">
+            <div key={f.title} className={`relative bg-white/[0.03] border rounded-lg p-5 transition-colors ${f.premium ? "border-gold/30 hover:border-gold/50" : "border-white/10 hover:border-gold/30"}`}>
+              {f.premium && (
+                <span className="absolute top-3 right-3 flex items-center gap-1 text-[9px] uppercase tracking-wide text-gold-bright bg-gold/10 border border-gold/30 rounded-full px-1.5 py-0.5">
+                  <Lock size={9} /> Premium
+                </span>
+              )}
               <f.icon size={20} className="text-gold-bright mb-3" />
               <h3 className="font-serif text-sm text-slate-100 mb-1.5">{f.title}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ---------- Bandeau incitatif Premium ---------- */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+        <div className="border border-gold/25 bg-gradient-to-r from-gold/5 to-transparent rounded-lg p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between">
+          <div>
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gold-bright bg-gold/10 border border-gold/20 rounded-full px-2 py-0.5 mb-3">
+              🔥 Offre de lancement
+            </span>
+            <h3 className="font-serif text-lg text-slate-50 mb-1">Stock, crédits & équipe illimitée dès 2 500 FCFA/mois</h3>
+            <p className="text-sm text-slate-400 max-w-md">Ne perdez plus une vente faute de stock, ni une créance client oubliée. Passez en Premium et pilotez tout votre commerce, pas seulement vos comptes.</p>
+          </div>
+          <button onClick={() => onEnter("signup")} className="shrink-0 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-5 py-2.5 text-sm transition-colors whitespace-nowrap">
+            Essayer Premium
+          </button>
         </div>
       </section>
 
