@@ -20,6 +20,7 @@ import IntelligencePanel from "./IntelligencePanel";
 import InstallAppTab from "./InstallAppTab";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
+import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet } from "../offlineQueue";
 
 const monthKey = (d) => d.slice(0, 7);
 
@@ -41,6 +42,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   const [showMessages, setShowMessages] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeTab, setActiveTab] = useState("bord");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncing, setSyncing] = useState(false);
 
   const daysLeft = premiumExpiresAt ? Math.ceil((new Date(premiumExpiresAt) - new Date()) / (1000 * 60 * 60 * 24)) : null;
   const isExpiringSoon = plan === "premium" && daysLeft !== null && daysLeft <= 5 && daysLeft >= 0;
@@ -60,13 +63,55 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     })();
   }, [session.user.id]);
 
+  const pendingCount = transactions.filter((t) => t._pending).length;
+
+  const syncNow = useCallback(async () => {
+    if (!activeId || !navigator.onLine) return;
+    setSyncing(true);
+    const { syncedLocalIds, syncedRows } = await syncPendingForCompany(activeId, supabase);
+    if (syncedLocalIds.length > 0) {
+      setTransactions((prev) => [
+        ...syncedRows,
+        ...prev.filter((t) => !(t._pending && syncedLocalIds.includes(t._localId))),
+      ]);
+    }
+    setSyncing(false);
+  }, [activeId]);
+
+  useEffect(() => {
+    const onOnline = () => { setIsOnline(true); syncNow(); };
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [syncNow]);
+
+  useEffect(() => {
+    if (activeId && navigator.onLine) syncNow();
+  }, [activeId, syncNow]);
+
   // ---------- Chargement initial ----------
   useEffect(() => {
     (async () => {
-      const { data: comps, error } = await supabase.from("companies").select("*").order("created_at");
-      if (!error && comps) {
-        setCompanies(comps);
-        setActiveId(comps[0]?.id ?? null);
+      try {
+        const { data: comps, error } = await supabase.from("companies").select("*").order("created_at");
+        if (!error && comps) {
+          setCompanies(comps);
+          setActiveId(comps[0]?.id ?? null);
+          cacheSet("companies", comps);
+        } else {
+          throw error || new Error("empty");
+        }
+      } catch {
+        // Hors ligne ou erreur réseau : on retombe sur la dernière liste connue.
+        const cached = cacheGet("companies");
+        if (cached) {
+          setCompanies(cached);
+          setActiveId(cached[0]?.id ?? null);
+        }
       }
       setLoading(false);
     })();
@@ -83,12 +128,19 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   useEffect(() => {
     if (!activeId) return;
     (async () => {
-      const { data } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("company_id", activeId)
-        .order("date", { ascending: false });
-      setTransactions(data || []);
+      try {
+        const { data, error } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("company_id", activeId)
+          .order("date", { ascending: false });
+        if (error) throw error;
+        cacheSet(`tx_${activeId}`, data || []);
+        setTransactions([...getPending(activeId), ...(data || [])]);
+      } catch {
+        const cached = cacheGet(`tx_${activeId}`) || [];
+        setTransactions([...getPending(activeId), ...cached]);
+      }
     })();
   }, [activeId]);
 
@@ -98,7 +150,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       .select("*")
       .eq("company_id", activeId)
       .order("date", { ascending: false });
-    setTransactions(data || []);
+    cacheSet(`tx_${activeId}`, data || []);
+    setTransactions([...getPending(activeId), ...(data || [])]);
   }, [activeId]);
 
   const updateCompany = async (patch) => {
@@ -159,9 +212,22 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   };
 
   const addTransaction = async (tx) => {
-    const { data, error } = await supabase.from("transactions").insert({ ...tx, company_id: activeId }).select().single();
-    if (!error && data) {
-      setTransactions((prev) => [data, ...prev]);
+    if (!navigator.onLine) {
+      const entry = addPending(activeId, tx);
+      setTransactions((prev) => [entry, ...prev]);
+      setShowForm(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase.from("transactions").insert({ ...tx, company_id: activeId }).select().single();
+      if (!error && data) {
+        setTransactions((prev) => [data, ...prev]);
+        setShowForm(false);
+      }
+    } catch {
+      // Le réseau a coupé au moment de l'envoi : on ne perd pas l'écriture, on la met en attente.
+      const entry = addPending(activeId, tx);
+      setTransactions((prev) => [entry, ...prev]);
       setShowForm(false);
     }
   };
@@ -175,9 +241,14 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     }
   };
 
-  const removeTransaction = async (id) => {
-    const { error } = await supabase.from("transactions").delete().eq("id", id);
-    if (!error) setTransactions((prev) => prev.filter((t) => t.id !== id));
+  const removeTransaction = async (t) => {
+    if (t._pending) {
+      removePending(activeId, t._localId);
+      setTransactions((prev) => prev.filter((x) => x.id !== t.id));
+      return;
+    }
+    const { error } = await supabase.from("transactions").delete().eq("id", t.id);
+    if (!error) setTransactions((prev) => prev.filter((x) => x.id !== t.id));
   };
 
   // ---------- Filtrage ----------
@@ -335,6 +406,24 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             </button>
           ))}
         </div>
+
+        {(!isOnline || pendingCount > 0) && (
+          <div className={`mb-6 border rounded-md px-4 py-3 flex items-center justify-between gap-3 flex-wrap ${!isOnline ? "border-slate-700 bg-slate-800/40" : "border-amber-800/50 bg-amber-950/30"}`}>
+            <p className={`text-xs flex items-center gap-2 ${!isOnline ? "text-slate-300" : "text-amber-200"}`}>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${!isOnline ? "bg-slate-500" : syncing ? "bg-amber-400 animate-pulse" : "bg-amber-400"}`} />
+              {!isOnline
+                ? "Hors ligne — vous pouvez continuer à enregistrer des écritures, elles seront envoyées automatiquement au retour de la connexion."
+                : syncing
+                ? "Synchronisation des écritures en attente…"
+                : `${pendingCount} écriture${pendingCount > 1 ? "s" : ""} en attente de synchronisation.`}
+            </p>
+            {isOnline && pendingCount > 0 && !syncing && (
+              <button onClick={syncNow} className="shrink-0 text-xs px-3 py-1.5 rounded-md border border-amber-700/50 text-amber-300 hover:bg-amber-900/30">
+                Synchroniser maintenant
+              </button>
+            )}
+          </div>
+        )}
 
         {isOwner && (isExpiringSoon || isExpired) && (
           <div className={`mb-6 border rounded-md px-4 py-3 flex items-center justify-between gap-3 flex-wrap ${isExpired ? "border-rose-800/50 bg-rose-950/30" : "border-amber-800/50 bg-amber-950/30"}`}>
@@ -510,8 +599,13 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
                   </td></tr>
                 )}
                 {filtered.map((t) => (
-                  <tr key={t.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                    <td className="px-4 py-2 font-mono text-xs text-slate-400">{t.date}</td>
+                  <tr key={t.id} className={`border-b border-slate-800/60 hover:bg-slate-800/30 ${t._pending ? "bg-amber-950/10" : ""}`}>
+                    <td className="px-4 py-2 font-mono text-xs text-slate-400">
+                      {t.date}
+                      {t._pending && (
+                        <span title="En attente de synchronisation" className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle" />
+                      )}
+                    </td>
                     <td className="px-2 py-2">
                       <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border" style={{ color: PALETTE[t.type_op], borderColor: PALETTE[t.type_op] }}>
                         {t.type_op}
@@ -525,7 +619,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
                     <td className="px-2 py-2 text-right font-mono text-slate-400 text-xs">{formatMontant(t.montant_base, company.devise_base)}</td>
                     <td className="px-2 py-2 text-right">
                       {isOwner && (
-                        <button onClick={() => removeTransaction(t.id)} className="text-slate-600 hover:text-rose-400">
+                        <button onClick={() => removeTransaction(t)} className="text-slate-600 hover:text-rose-400">
                           <Trash2 size={14} />
                         </button>
                       )}
