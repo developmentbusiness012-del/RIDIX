@@ -57,6 +57,7 @@ export const PLANS = [
       "Tout Freemium, sans limite d'entreprises",
       "Gestion des stocks avec alertes de rupture",
       "Suivi des crédits clients et dettes fournisseurs",
+      "Score de santé financière et prévisions de trésorerie",
       "Employés illimités, connectés via le code entreprise",
     ],
   },

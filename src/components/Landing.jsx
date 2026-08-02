@@ -1,7 +1,7 @@
 import {
   Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
-  Boxes, HandCoins, Lock,
+  Boxes, HandCoins, Lock, Sparkles,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 
@@ -21,6 +21,12 @@ const FEATURES = [
     icon: HandCoins,
     title: "Crédits & dettes",
     desc: "Ventes à crédit clients, dettes fournisseurs, paiements partiels — ne perdez plus jamais le fil d'une créance.",
+    premium: true,
+  },
+  {
+    icon: Sparkles,
+    title: "Intelligence financière",
+    desc: "Score de santé financière, détection d'anomalies et prévision de trésorerie — pour décider avant qu'il ne soit trop tard.",
     premium: true,
   },
   {
