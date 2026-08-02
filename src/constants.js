@@ -48,7 +48,10 @@ export const PLANS = [
   {
     id: "premium",
     label: "Premium",
-    price: "Sur devis",
+    price: "2 500 FCFA",
+    period: "/ mois",
+    promo: true,
+    promoLabel: "🔥 Offre de lancement",
     tagline: "Pour gérer une équipe",
     features: [
       "Entreprises illimitées",

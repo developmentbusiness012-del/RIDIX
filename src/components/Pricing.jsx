@@ -46,9 +46,16 @@ export default function Pricing({ userId, onDone }) {
         <div className="grid md:grid-cols-2 gap-5 mb-8">
           {PLANS.map((p) => (
             <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.id === "premium" ? "border-amber-400 bg-amber-400/5" : "border-slate-800 bg-slate-900/60"}`}>
+              {p.promo && (
+                <span className="inline-block text-[10px] font-semibold uppercase tracking-wide bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-full px-2 py-0.5 mb-2">
+                  {p.promoLabel}
+                </span>
+              )}
               <div className="flex items-baseline justify-between mb-1">
                 <h2 className="font-serif text-xl text-slate-50">{p.label}</h2>
-                <span className="text-sm font-mono text-amber-300">{p.price}</span>
+                <span className="text-sm font-mono text-amber-300">
+                  {p.price}{p.period && <span className="text-slate-500 text-xs"> {p.period}</span>}
+                </span>
               </div>
               <p className="text-xs text-slate-400 mb-4">{p.tagline}</p>
               <ul className="space-y-2 mb-6 flex-1">

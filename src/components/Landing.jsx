@@ -205,9 +205,16 @@ export default function Landing({ onEnter }) {
         <div className="grid md:grid-cols-2 gap-5 mb-8">
           {PLANS.map((p) => (
             <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.id === "premium" ? "border-gold bg-gold/5" : "border-white/10 bg-white/[0.03]"}`}>
+              {p.promo && (
+                <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-full px-2 py-0.5 mb-2">
+                  {p.promoLabel}
+                </span>
+              )}
               <div className="flex items-baseline justify-between mb-1">
                 <h3 className="font-serif font-semibold text-xl text-slate-50">{p.label}</h3>
-                <span className="text-sm font-mono text-gold-bright">{p.price}</span>
+                <span className="text-sm font-mono text-gold-bright">
+                  {p.price}{p.period && <span className="text-slate-500 text-xs"> {p.period}</span>}
+                </span>
               </div>
               <p className="text-xs text-slate-400 mb-4">{p.tagline}</p>
               <ul className="space-y-2 mb-6 flex-1">

@@ -173,10 +173,16 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
   // ---------- Filtrage ----------
   const filtered = useMemo(() => {
     const now = new Date();
+    const startOfWeek = new Date(now);
+    const dayIdx = (now.getDay() + 6) % 7; // lundi = 0
+    startOfWeek.setDate(now.getDate() - dayIdx);
+    startOfWeek.setHours(0, 0, 0, 0);
     return transactions.filter((t) => {
       if (filterType !== "tous" && t.type_op !== filterType) return false;
       if (filterPeriode === "tout") return true;
       const d = new Date(t.date);
+      if (filterPeriode === "jour") return d.toDateString() === now.toDateString();
+      if (filterPeriode === "semaine") return d >= startOfWeek;
       if (filterPeriode === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       if (filterPeriode === "trimestre") {
         const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
@@ -345,7 +351,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
         {/* ---------- Filtres + actions ---------- */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
           <div className="flex flex-wrap gap-2">
-            {[["mois", "Ce mois"], ["trimestre", "Trimestre"], ["annee", "Année"], ["tout", "Tout"]].map(([id, label]) => (
+            {[["jour", "Aujourd'hui"], ["semaine", "Semaine"], ["mois", "Ce mois"], ["trimestre", "Trimestre"], ["annee", "Année"], ["tout", "Tout"]].map(([id, label]) => (
               <button key={id} onClick={() => setFilterPeriode(id)}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterPeriode === id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
                 {label}
