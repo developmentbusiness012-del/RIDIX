@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
@@ -17,6 +17,7 @@ import MessagesPanel from "./MessagesPanel";
 import StockPanel from "./StockPanel";
 import CreditsPanel from "./CreditsPanel";
 import IntelligencePanel from "./IntelligencePanel";
+import InstallAppTab from "./InstallAppTab";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
 
@@ -320,6 +321,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
             { id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" },
+            { id: "app", label: "App", icon: Smartphone, locked: false },
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${activeTab === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
@@ -530,6 +532,8 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
         {activeTab === "intelligence" && (
           <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
         )}
+
+        {activeTab === "app" && <InstallAppTab />}
       </div>
 
       {showForm && <TransactionForm deviseBase={company.devise_base} onClose={() => setShowForm(false)} onSubmit={addTransaction} />}

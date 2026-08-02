@@ -4,6 +4,7 @@ import {
   Boxes, HandCoins, Lock, Sparkles, FileText,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
+import InstallAppSection from "./InstallAppSection";
 
 const FEATURES = [
   {
@@ -105,6 +106,7 @@ export default function Landing({ onEnter }) {
             <a href="#fonctionnalites" className="hover:text-slate-100">Fonctionnalités</a>
             <a href="#offres" className="hover:text-slate-100">Offres</a>
             <a href="#comment" className="hover:text-slate-100">Comment ça marche</a>
+            <a href="#app" className="hover:text-slate-100">Application</a>
           </nav>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <button onClick={() => onEnter("signin")} className="text-xs sm:text-sm text-slate-300 hover:text-slate-50 px-2 sm:px-3 py-2 whitespace-nowrap">
@@ -298,6 +300,8 @@ export default function Landing({ onEnter }) {
           </div>
         </div>
       </section>
+
+      <InstallAppSection />
 
       {/* ---------- CTA final ---------- */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
