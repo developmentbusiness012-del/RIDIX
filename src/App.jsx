@@ -98,7 +98,7 @@ export default function App() {
     // Tentative propriétaire
     const { data: ownerSettings } = await supabase.from("account_settings").select("*").eq("user_id", userId).maybeSingle();
     if (ownerSettings) {
-      setProfile({ role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin });
+      setProfile({ role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin, premiumExpiresAt: ownerSettings.premium_expires_at });
       setResolving(false);
       return;
     }
@@ -148,7 +148,7 @@ export default function App() {
     <PaymentReturnOverlay
       onResolved={(plan) => {
         setShowPaymentReturn(false);
-        if (plan) setProfile((p) => ({ ...p, plan, onboarded: true }));
+        if (plan) resolveProfile(session.user.id);
       }}
     />
   );
@@ -166,7 +166,7 @@ export default function App() {
   }
   return (
     <>
-      <Dashboard session={session} role={profile.role} plan={profile.plan} isAdmin={profile.isAdmin} onOpenAdmin={() => setAdminView(true)} />
+      <Dashboard session={session} role={profile.role} plan={profile.plan} premiumExpiresAt={profile.premiumExpiresAt} isAdmin={profile.isAdmin} onOpenAdmin={() => setAdminView(true)} />
       {paymentOverlay}
     </>
   );

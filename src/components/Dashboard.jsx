@@ -23,7 +23,7 @@ import { startPremiumCheckout } from "../payments";
 
 const monthKey = (d) => d.slice(0, 7);
 
-export default function Dashboard({ session, role, plan: initialPlan, isAdmin, onOpenAdmin }) {
+export default function Dashboard({ session, role, plan: initialPlan, premiumExpiresAt, isAdmin, onOpenAdmin }) {
   const isOwner = role === "owner";
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
@@ -41,6 +41,10 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
   const [showMessages, setShowMessages] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeTab, setActiveTab] = useState("bord");
+
+  const daysLeft = premiumExpiresAt ? Math.ceil((new Date(premiumExpiresAt) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+  const isExpiringSoon = plan === "premium" && daysLeft !== null && daysLeft <= 5 && daysLeft >= 0;
+  const isExpired = daysLeft !== null && daysLeft < 0 && (plan === "premium" || plan === "freemium");
 
   const company = companies.find((c) => c.id === activeId);
 
@@ -332,6 +336,20 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
           ))}
         </div>
 
+        {isOwner && (isExpiringSoon || isExpired) && (
+          <div className={`mb-6 border rounded-md px-4 py-3 flex items-center justify-between gap-3 flex-wrap ${isExpired ? "border-rose-800/50 bg-rose-950/30" : "border-amber-800/50 bg-amber-950/30"}`}>
+            <p className={`text-xs ${isExpired ? "text-rose-200" : "text-amber-200"}`}>
+              {isExpired
+                ? "Votre abonnement Premium a expiré — vous êtes repassé en Freemium. Renouvelez pour retrouver le Stock, les Crédits & dettes et l'Intelligence financière."
+                : `Votre abonnement Premium expire dans ${daysLeft} jour${daysLeft > 1 ? "s" : ""} — pensez à le renouveler pour ne pas perdre l'accès.`}
+            </p>
+            <button onClick={() => changePlan("premium")} disabled={checkoutLoading}
+              className="shrink-0 flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-xs rounded-md px-3 py-2 disabled:opacity-60">
+              {checkoutLoading && <Loader2 size={12} className="animate-spin" />} Renouveler maintenant
+            </button>
+          </div>
+        )}
+
         {activeTab === "bord" && (
         <>
         {/* ---------- Bandeau restrictions employé ---------- */}
@@ -542,6 +560,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
         <SettingsPanel
           company={company}
           plan={plan}
+          premiumExpiresAt={premiumExpiresAt}
           checkoutLoading={checkoutLoading}
           planActionError={planActionError}
           employees={employees}
@@ -558,7 +577,7 @@ export default function Dashboard({ session, role, plan: initialPlan, isAdmin, o
   );
 }
 
-function SettingsPanel({ company, plan, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, checkoutLoading, planActionError }) {
+function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, checkoutLoading, planActionError }) {
   const [copied, setCopied] = useState(false);
 
   const copyCode = async () => {
@@ -610,6 +629,17 @@ function SettingsPanel({ company, plan, employees, onChangePlan, onRemoveEmploye
             ))}
           </div>
           {planActionError && <p className="text-[11px] text-rose-400 mt-2">{planActionError}</p>}
+          {plan === "premium" && premiumExpiresAt && (
+            <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-[11px] text-slate-500">
+                Actif jusqu'au {new Date(premiumExpiresAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+              <button onClick={() => onChangePlan("premium")} disabled={checkoutLoading}
+                className="text-[11px] text-amber-400 hover:text-amber-300 underline disabled:opacity-60">
+                Renouveler maintenant
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mb-5">
