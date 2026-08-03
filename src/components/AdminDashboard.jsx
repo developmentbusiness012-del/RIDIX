@@ -11,6 +11,7 @@ export default function AdminDashboard({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [stats, setStats] = useState(null);
+  const [planUpdating, setPlanUpdating] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -20,6 +21,23 @@ export default function AdminDashboard({ onBack }) {
       setLoading(false);
     })();
   }, []);
+
+  const toggleUserPlan = async (userId, currentPlan) => {
+    const nextPlan = currentPlan === "premium" ? "freemium" : "premium";
+    setPlanUpdating(userId);
+    const { error } = await supabase.rpc("admin_set_user_plan", { target_user_id: userId, new_plan: nextPlan });
+    if (!error) {
+      setStats((prev) => ({
+        ...prev,
+        premium: nextPlan === "premium" ? prev.premium + 1 : prev.premium - 1,
+        freemium: nextPlan === "freemium" ? prev.freemium + 1 : prev.freemium - 1,
+        users: prev.users.map((u) => (u.id === userId ? { ...u, plan: nextPlan } : u)),
+      }));
+    } else {
+      alert("Impossible de modifier le plan : " + error.message);
+    }
+    setPlanUpdating(null);
+  };
 
   if (loading) {
     return (
@@ -134,6 +152,7 @@ export default function AdminDashboard({ onBack }) {
                   <th className="px-2 py-2 font-medium">Entreprises</th>
                   <th className="px-2 py-2 font-medium">Inscrit le</th>
                   <th className="px-2 py-2 font-medium">Dernière connexion</th>
+                  <th className="px-2 py-2 font-medium text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,6 +170,30 @@ export default function AdminDashboard({ onBack }) {
                     <td className="px-2 py-2 text-slate-400 font-mono text-xs">{u.companies_count}</td>
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString("fr-FR") : "—"}</td>
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString("fr-FR") : "Jamais"}</td>
+                    <td className="px-2 py-2 text-right">
+                      {u.role === "owner" ? (
+                        <button
+                          onClick={() => toggleUserPlan(u.id, u.plan)}
+                          disabled={planUpdating === u.id}
+                          className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-md border ml-auto disabled:opacity-50 ${
+                            u.plan === "premium"
+                              ? "border-slate-700 text-slate-400 hover:border-rose-700 hover:text-rose-300"
+                              : "border-amber-700/50 text-amber-300 hover:bg-amber-900/30"
+                          }`}
+                        >
+                          {planUpdating === u.id ? (
+                            <Loader2 size={11} className="animate-spin" />
+                          ) : u.plan === "premium" ? (
+                            <Gift size={11} />
+                          ) : (
+                            <Crown size={11} />
+                          )}
+                          {u.plan === "premium" ? "Repasser Freemium" : "Passer Premium"}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-600">hérité du patron</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
