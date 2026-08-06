@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
-import { Loader2, Building2, Users, LogIn, ArrowLeft } from "lucide-react";
+import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import ForgotPassword from "./ForgotPassword";
 
 export default function Auth({ initialMode = "signin", onBack }) {
   const [mode, setMode] = useState(initialMode); // signin | signup | employee
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgot, setShowForgot] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -50,6 +53,10 @@ export default function Auth({ initialMode = "signin", onBack }) {
     { id: "signup", label: "Créer une entreprise", icon: Building2 },
     { id: "employee", label: "Rejoindre en tant qu'employé", icon: Users },
   ];
+
+  if (showForgot) {
+    return <ForgotPassword onBack={() => setShowForgot(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4 font-sans py-10">
@@ -123,15 +130,30 @@ export default function Auth({ initialMode = "signin", onBack }) {
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Mot de passe</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 pr-10 text-sm"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  tabIndex={-1}
+                  className="absolute right-0 top-0 h-full px-3 flex items-center text-slate-500 hover:text-slate-300"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+              {mode === "signin" && (
+                <button type="button" onClick={() => setShowForgot(true)} className="text-[11px] text-amber-400 hover:text-amber-300 mt-1.5">
+                  Mot de passe oublié ?
+                </button>
+              )}
             </div>
 
             {error && <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/30 rounded-md px-3 py-2">{error}</p>}

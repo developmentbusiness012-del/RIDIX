@@ -115,15 +115,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(({ data, error }) => {
+      // Une erreur ici est généralement due à une coupure réseau au moment de la
+      // validation du jeton — pas à une vraie déconnexion. On ne vide pas la session
+      // dans ce cas ; supabase-js réessaiera de rafraîchir le jeton tout seul.
+      if (!error) setSession(data.session);
       setLoading(false);
       if (data.session) resolveProfile(data.session.user.id);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s) resolveProfile(s.user.id);
-      else setProfile(null);
+    const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setProfile(null);
+        return;
+      }
+      if (s) {
+        setSession(s);
+        resolveProfile(s.user.id);
+      }
+      // Les autres événements (ex. échec ponctuel de rafraîchissement hors-ligne)
+      // n'effacent volontairement pas la session déjà chargée.
     });
     return () => listener.subscription.unsubscribe();
   }, [resolveProfile]);
