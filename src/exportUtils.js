@@ -141,7 +141,7 @@ export function exportDossierFinancement(transactions, products, credits, compan
   });
   const months = Object.keys(monthly).sort().slice(-12);
 
-  let curY = doc.lastAutoTable.finY + 12;
+  let curY = doc.lastAutoTable.finalY + 12;
   doc.setFont(undefined, "bold");
   doc.setFontSize(11);
   doc.setTextColor(20, 20, 20);
@@ -159,7 +159,7 @@ export function exportDossierFinancement(transactions, products, credits, compan
   });
 
   if (analysis.forecast) {
-    curY = doc.lastAutoTable.finY + 12;
+    curY = doc.lastAutoTable.finalY + 12;
     doc.setFont(undefined, "bold");
     doc.text("Projection de trésorerie", 14, curY);
     autoTable(doc, {
@@ -193,7 +193,7 @@ export function exportDossierFinancement(transactions, products, credits, compan
   });
 
   if (analysis.topProfitables.length > 0) {
-    curY = doc.lastAutoTable.finY + 12;
+    curY = doc.lastAutoTable.finalY + 12;
     doc.setFont(undefined, "bold");
     doc.setFontSize(11);
     doc.text("Activités les plus rentables", 14, curY);
