@@ -648,7 +648,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         {activeTab === "app" && <InstallAppTab />}
       </div>
 
-      {showForm && <TransactionForm deviseBase={company.devise_base} onClose={() => setShowForm(false)} onSubmit={addTransaction} />}
+      {showForm && <TransactionForm deviseBase={company.devise_base} plan={plan} companyId={activeId} onClose={() => setShowForm(false)} onSubmit={addTransaction} />}
       {showImport && <ImportCsv deviseBase={company.devise_base} onClose={() => setShowImport(false)} onImport={importTransactions} />}
       {showSettings && (
         <SettingsPanel

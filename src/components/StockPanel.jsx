@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { Boxes, Plus, Trash2, AlertTriangle, X, Lock, Loader2, Minus } from "lucide-react";
+import { Boxes, Plus, Trash2, AlertTriangle, X, Lock, Loader2, Minus, History, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
 
 export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpgrade, checkoutLoading }) {
   const [products, setProducts] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
@@ -12,8 +13,18 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
     if (plan !== "premium" || !companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from("products").select("*").eq("company_id", companyId).order("name");
-      setProducts(data || []);
+      const [{ data: prods }, { data: moves }] = await Promise.all([
+        supabase.from("products").select("*").eq("company_id", companyId).order("name"),
+        supabase
+          .from("transactions")
+          .select("id, date, sens, quantity, montant_base, product_id, products(name, unit)")
+          .eq("company_id", companyId)
+          .not("product_id", "is", null)
+          .order("date", { ascending: false })
+          .limit(8),
+      ]);
+      setProducts(prods || []);
+      setMovements(moves || []);
       setLoading(false);
     })();
   }, [companyId, plan]);
@@ -119,6 +130,26 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
           </table>
         </div>
       </div>
+
+      {movements.length > 0 && (
+        <div className="mb-10">
+          <h3 className="text-xs uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><History size={13} /> Mouvements récents (liés aux écritures)</h3>
+          <div className="bg-slate-900/60 border border-slate-800 rounded-md divide-y divide-slate-800/60">
+            {movements.map((m) => (
+              <div key={m.id} className="flex items-center justify-between px-4 py-2.5 text-xs">
+                <span className="flex items-center gap-2 text-slate-300">
+                  {m.sens === "recette" ? <ArrowDownCircle size={13} className="text-rose-400" /> : <ArrowUpCircle size={13} className="text-emerald-400" />}
+                  {m.products?.name || "Produit supprimé"}
+                  <span className="text-slate-600 font-mono">{m.date}</span>
+                </span>
+                <span className={`font-mono ${m.sens === "recette" ? "text-rose-400" : "text-emerald-400"}`}>
+                  {m.sens === "recette" ? "-" : "+"}{m.quantity} {m.products?.unit || ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showForm && <ProductForm deviseBase={deviseBase} onClose={() => setShowForm(false)} onSubmit={addProduct} />}
     </div>

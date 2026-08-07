@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Package, Loader2 } from "lucide-react";
+import { supabase } from "../supabaseClient";
 import { DEVISES, TYPES_OP, CATEGORIES_RECETTE, CATEGORIES_DEPENSE, formatMontant } from "../constants";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionForm({ deviseBase, onClose, onSubmit }) {
+export default function TransactionForm({ deviseBase, plan, companyId, onClose, onSubmit }) {
   const [sens, setSens] = useState("recette");
   const [typeOp, setTypeOp] = useState("local");
   const [categorie, setCategorie] = useState(CATEGORIES_RECETTE[0]);
@@ -15,8 +16,21 @@ export default function TransactionForm({ deviseBase, onClose, onSubmit }) {
   const [taux, setTaux] = useState(1);
   const [saving, setSaving] = useState(false);
 
+  const [products, setProducts] = useState([]);
+  const [productId, setProductId] = useState("");
+  const [productQty, setProductQty] = useState("");
+
+  useEffect(() => {
+    if (plan !== "premium" || !companyId) return;
+    (async () => {
+      const { data } = await supabase.from("products").select("id, name, quantity, unit").eq("company_id", companyId).order("name");
+      setProducts(data || []);
+    })();
+  }, [plan, companyId]);
+
   const categories = sens === "recette" ? CATEGORIES_RECETTE : CATEGORIES_DEPENSE;
   const montantBase = (Number(montant) || 0) * (txDevise === deviseBase ? 1 : Number(taux) || 0);
+  const selectedProduct = products.find((p) => p.id === productId);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -32,6 +46,8 @@ export default function TransactionForm({ deviseBase, onClose, onSubmit }) {
       devise: txDevise,
       taux: txDevise === deviseBase ? 1 : Number(taux) || 0,
       montant_base: montantBase,
+      product_id: productId || null,
+      quantity: productId && productQty ? Number(productQty) : null,
     });
     setSaving(false);
   };
@@ -76,6 +92,29 @@ export default function TransactionForm({ deviseBase, onClose, onSubmit }) {
         <input value={libelle} onChange={(e) => setLibelle(e.target.value)} placeholder="Ex : Conteneur cacao — client Rotterdam"
           className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm mb-3" />
 
+        {plan === "premium" && products.length > 0 && (
+          <div className="mb-3 border border-slate-800 rounded-md p-3 bg-slate-800/30">
+            <label className="flex items-center gap-1.5 text-xs text-slate-400 mb-1.5"><Package size={12} /> Produit du stock concerné (optionnel)</label>
+            <select value={productId} onChange={(e) => { setProductId(e.target.value); setProductQty(""); }}
+              className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm mb-2">
+              <option value="">— Aucun —</option>
+              {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.quantity} {p.unit} en stock)</option>)}
+            </select>
+            {productId && (
+              <>
+                <input type="number" min="0" step="any" value={productQty} onChange={(e) => setProductQty(e.target.value)}
+                  placeholder={`Quantité (${sens === "recette" ? "sortie de stock" : "entrée de stock"})`}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm font-mono" />
+                <p className="text-[10px] text-slate-500 mt-1.5">
+                  {sens === "recette"
+                    ? `Le stock de "${selectedProduct?.name}" sera automatiquement réduit de cette quantité.`
+                    : `Le stock de "${selectedProduct?.name}" sera automatiquement augmenté de cette quantité (réapprovisionnement).`}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Date</label>
@@ -110,8 +149,8 @@ export default function TransactionForm({ deviseBase, onClose, onSubmit }) {
           <span className="font-mono text-slate-200">{formatMontant(montantBase, deviseBase)}</span>
         </div>
 
-        <button type="submit" disabled={saving} className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 font-medium rounded-md py-2.5 text-sm transition-colors">
-          {saving ? "Enregistrement…" : "Enregistrer l'écriture"}
+        <button type="submit" disabled={saving} className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 font-medium rounded-md py-2.5 text-sm transition-colors flex items-center justify-center gap-2">
+          {saving && <Loader2 size={14} className="animate-spin" />} {saving ? "Enregistrement…" : "Enregistrer l'écriture"}
         </button>
       </form>
     </div>
