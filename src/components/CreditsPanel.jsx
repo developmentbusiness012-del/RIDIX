@@ -3,6 +3,7 @@ import { HandCoins, Plus, Trash2, X, Loader2, ArrowDownCircle, ArrowUpCircle } f
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
 import { PremiumTeaser } from "./StockPanel";
+import { ConfirmDialog, PromptDialog } from "./Dialogs";
 
 export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onUpgrade, checkoutLoading }) {
   const [credits, setCredits] = useState([]);
@@ -38,10 +39,13 @@ export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onU
     if (!error) setCredits((prev) => prev.map((c) => (c.id === credit.id ? { ...c, montant_paye: nextPaye, statut } : c)));
   };
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [paymentTarget, setPaymentTarget] = useState(null); // credit being paid
+
   const removeCredit = async (id) => {
-    if (!confirm("Supprimer cette fiche ?")) return;
     const { error } = await supabase.from("credits").delete().eq("id", id);
     if (!error) setCredits((prev) => prev.filter((c) => c.id !== id));
+    setConfirmDeleteId(null);
   };
 
   if (plan !== "premium") {
@@ -125,12 +129,12 @@ export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onU
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1">
                         {c.statut === "ouvert" && (
-                          <button onClick={() => { const m = prompt(`Montant reçu/payé (reste ${reste}) :`); if (m && Number(m) > 0) recordPayment(c, Number(m)); }}
+                          <button onClick={() => setPaymentTarget(c)}
                             className="text-[10px] text-amber-300 hover:text-amber-200 border border-amber-700/50 rounded px-1.5 py-0.5">
                             + paiement
                           </button>
                         )}
-                        {isOwner && <button onClick={() => removeCredit(c.id)} className="text-slate-600 hover:text-rose-400 p-1"><Trash2 size={13} /></button>}
+                        {isOwner && <button onClick={() => setConfirmDeleteId(c.id)} className="text-slate-600 hover:text-rose-400 p-1"><Trash2 size={13} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -142,6 +146,28 @@ export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onU
       </div>
 
       {showForm && <CreditForm type={tab} deviseBase={deviseBase} onClose={() => setShowForm(false)} onSubmit={addCredit} />}
+
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Supprimer cette fiche ?"
+          message="Cette action est définitive."
+          confirmLabel="Supprimer"
+          danger
+          onConfirm={() => removeCredit(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+      {paymentTarget && (
+        <PromptDialog
+          title={paymentTarget.type === "client" ? "Encaissement reçu" : "Paiement effectué"}
+          label={`Montant (reste ${formatMontant(Number(paymentTarget.montant) - Number(paymentTarget.montant_paye), paymentTarget.devise)})`}
+          type="number"
+          placeholder="0"
+          confirmLabel="Enregistrer"
+          onSubmit={async (montant) => { await recordPayment(paymentTarget, montant); setPaymentTarget(null); }}
+          onCancel={() => setPaymentTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import CreditsPanel from "./CreditsPanel";
 import IntelligencePanel from "./IntelligencePanel";
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
+import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
 import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet } from "../offlineQueue";
@@ -165,15 +166,18 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     }
   };
 
-  const createCompany = async () => {
+  const [dialog, setDialog] = useState(null); // { type: 'createCompany'|'limitInfo'|'removeEmployee', payload }
+
+  const createCompany = () => {
     if (plan === "freemium" && companies.length >= 2) {
-      alert("L'offre Freemium est limitée à 2 entreprises. Passez en Premium pour en créer davantage.");
+      setDialog({ type: "limitInfo" });
       setShowCompanyMenu(false);
-      setShowSettings(true);
       return;
     }
-    const name = prompt("Nom de la nouvelle entreprise ?", "Nouvelle entreprise");
-    if (!name) return;
+    setDialog({ type: "createCompany" });
+  };
+
+  const submitNewCompany = async (name) => {
     const { data, error } = await supabase
       .from("companies")
       .insert({ owner_id: session.user.id, name, profil: "mixte", devise_base: "XAF" })
@@ -184,6 +188,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       setActiveId(data.id);
       setShowCompanyMenu(false);
     }
+    setDialog(null);
   };
 
   const [planActionError, setPlanActionError] = useState(null);
@@ -206,10 +211,13 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     if (!error) setPlan(nextPlan);
   };
 
-  const removeEmployee = async (id) => {
-    if (!confirm("Retirer cet employé de l'entreprise ?")) return;
+  const removeEmployee = (id) => setDialog({ type: "removeEmployee", payload: id });
+
+  const confirmRemoveEmployee = async () => {
+    const id = dialog.payload;
     const { error } = await supabase.from("company_members").delete().eq("id", id);
     if (!error) setEmployees((prev) => prev.filter((e) => e.id !== id));
+    setDialog(null);
   };
 
   const addTransaction = async (tx) => {
@@ -669,6 +677,35 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         <MessagesPanel session={session} onClose={() => setShowMessages(false)} onRead={() => setUnreadCount(0)} />
       )}
       <InstallFloatingCTA />
+
+      {dialog?.type === "createCompany" && (
+        <PromptDialog
+          title="Nouvelle entreprise"
+          label="Nom de l'entreprise"
+          defaultValue="Nouvelle entreprise"
+          confirmLabel="Créer"
+          onSubmit={submitNewCompany}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog?.type === "limitInfo" && (
+        <InfoDialog
+          title="Limite Freemium atteinte"
+          message="L'offre Freemium est limitée à 2 entreprises. Passez en Premium pour en créer davantage."
+          danger
+          onClose={() => { setDialog(null); setShowSettings(true); }}
+        />
+      )}
+      {dialog?.type === "removeEmployee" && (
+        <ConfirmDialog
+          title="Retirer cet employé ?"
+          message="Il perdra l'accès à cette entreprise immédiatement."
+          confirmLabel="Retirer"
+          danger
+          onConfirm={confirmRemoveEmployee}
+          onCancel={() => setDialog(null)}
+        />
+      )}
     </div>
   );
 }

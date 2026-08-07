@@ -5,6 +5,7 @@ import {
 import { Users, UserCheck, Crown, Gift, Building2, Receipt, ArrowLeft, Loader2, BarChart3, MessageCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import AdminMessaging from "./AdminMessaging";
+import { InfoDialog } from "./Dialogs";
 
 export default function AdminDashboard({ onBack }) {
   const [tab, setTab] = useState("stats");
@@ -12,6 +13,7 @@ export default function AdminDashboard({ onBack }) {
   const [error, setError] = useState("");
   const [stats, setStats] = useState(null);
   const [planUpdating, setPlanUpdating] = useState(null);
+  const [planErrorMsg, setPlanErrorMsg] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -34,7 +36,7 @@ export default function AdminDashboard({ onBack }) {
         users: prev.users.map((u) => (u.id === userId ? { ...u, plan: nextPlan } : u)),
       }));
     } else {
-      alert("Impossible de modifier le plan : " + error.message);
+      setPlanErrorMsg(error.message);
     }
     setPlanUpdating(null);
   };
@@ -203,6 +205,9 @@ export default function AdminDashboard({ onBack }) {
         </>
         )}
       </div>
+      {planErrorMsg && (
+        <InfoDialog title="Impossible de modifier le plan" message={planErrorMsg} danger onClose={() => setPlanErrorMsg(null)} />
+      )}
     </div>
   );
 }

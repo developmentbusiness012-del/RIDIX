@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Boxes, Plus, Trash2, AlertTriangle, X, Lock, Loader2, Minus, History, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
+import { ConfirmDialog } from "./Dialogs";
 
 export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpgrade, checkoutLoading }) {
   const [products, setProducts] = useState([]);
@@ -42,10 +43,12 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
     if (!error) setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, quantity: next } : p)));
   };
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
   const removeProduct = async (id) => {
-    if (!confirm("Supprimer ce produit du stock ?")) return;
     const { error } = await supabase.from("products").delete().eq("id", id);
     if (!error) setProducts((prev) => prev.filter((p) => p.id !== id));
+    setConfirmDeleteId(null);
   };
 
   if (plan !== "premium") {
@@ -120,7 +123,7 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => adjustQuantity(p, -1)} className="text-slate-500 hover:text-rose-400 p-1"><Minus size={13} /></button>
                         <button onClick={() => adjustQuantity(p, 1)} className="text-slate-500 hover:text-emerald-400 p-1"><Plus size={13} /></button>
-                        {isOwner && <button onClick={() => removeProduct(p.id)} className="text-slate-600 hover:text-rose-400 p-1"><Trash2 size={13} /></button>}
+                        {isOwner && <button onClick={() => setConfirmDeleteId(p.id)} className="text-slate-600 hover:text-rose-400 p-1"><Trash2 size={13} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -152,6 +155,17 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
       )}
 
       {showForm && <ProductForm deviseBase={deviseBase} onClose={() => setShowForm(false)} onSubmit={addProduct} />}
+
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Supprimer ce produit ?"
+          message="Cette action est définitive."
+          confirmLabel="Supprimer"
+          danger
+          onConfirm={() => removeProduct(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
     </div>
   );
 }
