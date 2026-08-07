@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
+import InstallFloatingCTA from "./InstallFloatingCTA";
 
 const FEATURES = [
   {
@@ -315,6 +316,8 @@ export default function Landing({ onEnter }) {
       <footer className="border-t border-white/10 py-8 text-center text-xs text-slate-600 font-mono">
         RIDIX FINANCE — pensé pour les commerçants, importateurs et exportateurs.
       </footer>
+
+      <InstallFloatingCTA />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import StockPanel from "./StockPanel";
 import CreditsPanel from "./CreditsPanel";
 import IntelligencePanel from "./IntelligencePanel";
 import InstallAppTab from "./InstallAppTab";
+import InstallFloatingCTA from "./InstallFloatingCTA";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
 import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet } from "../offlineQueue";
@@ -667,6 +668,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       {showMessages && (
         <MessagesPanel session={session} onClose={() => setShowMessages(false)} onRead={() => setUnreadCount(0)} />
       )}
+      <InstallFloatingCTA />
     </div>
   );
 }

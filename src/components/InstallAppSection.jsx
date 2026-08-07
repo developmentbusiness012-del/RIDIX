@@ -1,8 +1,11 @@
-import { Smartphone, Download, Share, PlusSquare, CheckCircle2, Apple } from "lucide-react";
+import { useState } from "react";
+import { Smartphone, Download, CheckCircle2 } from "lucide-react";
 import { useInstallPrompt } from "../useInstallPrompt";
+import InstallGuideModal from "./InstallGuideModal";
 
 export default function InstallAppSection() {
-  const { canInstall, installed, promptInstall, platform } = useInstallPrompt();
+  const { installed } = useInstallPrompt();
+  const [showGuide, setShowGuide] = useState(false);
 
   return (
     <section id="app" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-white/10">
@@ -26,16 +29,10 @@ export default function InstallAppSection() {
             <div className="inline-flex items-center gap-2 text-sm text-forest-bright bg-forest/10 border border-forest/30 rounded-md px-4 py-2.5">
               <CheckCircle2 size={16} /> Application déjà installée sur cet appareil
             </div>
-          ) : platform === "ios" ? (
-            <IosInstructions />
-          ) : canInstall ? (
-            <button onClick={promptInstall} className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-5 py-3 text-sm transition-colors">
+          ) : (
+            <button onClick={() => setShowGuide(true)} className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-5 py-3 text-sm transition-colors">
               <Download size={16} /> Installer l'application
             </button>
-          ) : (
-            <p className="text-xs text-slate-500 bg-white/[0.03] border border-white/10 rounded-md px-4 py-3 max-w-sm">
-              Ouvrez ce site depuis votre téléphone (Chrome sur Android ou Safari sur iPhone) pour l'installer.
-            </p>
           )}
         </div>
 
@@ -43,20 +40,8 @@ export default function InstallAppSection() {
           <PhoneMockup />
         </div>
       </div>
+      {showGuide && <InstallGuideModal onClose={() => setShowGuide(false)} />}
     </section>
-  );
-}
-
-function IosInstructions() {
-  return (
-    <div className="border border-white/10 bg-white/[0.03] rounded-lg p-4 max-w-sm">
-      <p className="text-xs text-slate-400 mb-3 flex items-center gap-1.5"><Apple size={13} /> Sur iPhone / iPad (via Safari) :</p>
-      <ol className="space-y-2 text-xs text-slate-300">
-        <li className="flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-gold/15 text-gold-bright flex items-center justify-center font-mono text-[10px] shrink-0">1</span>Appuyez sur <Share size={13} className="inline mx-1 text-gold-bright" /> Partager, en bas de l'écran</li>
-        <li className="flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-gold/15 text-gold-bright flex items-center justify-center font-mono text-[10px] shrink-0">2</span>Faites défiler et choisissez <PlusSquare size={13} className="inline mx-1 text-gold-bright" /> "Sur l'écran d'accueil"</li>
-        <li className="flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-gold/15 text-gold-bright flex items-center justify-center font-mono text-[10px] shrink-0">3</span>Appuyez sur "Ajouter"</li>
-      </ol>
-    </div>
   );
 }
 

@@ -38,8 +38,19 @@ export function useInstallPrompt() {
     const ua = window.navigator.userAgent || "";
     if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return "ios";
     if (/android/i.test(ua)) return "android";
+    if (/Mac OS X/.test(ua) && navigator.maxTouchPoints <= 1) return "mac";
+    if (/Windows/.test(ua)) return "windows";
     return "other";
   })();
 
-  return { canInstall: !!deferredPrompt, installed, promptInstall, platform };
+  const browser = (() => {
+    const ua = window.navigator.userAgent || "";
+    if (/Edg\//.test(ua)) return "edge";
+    if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) return "chrome";
+    if (/Firefox\//.test(ua)) return "firefox";
+    if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) return "safari";
+    return "other";
+  })();
+
+  return { canInstall: !!deferredPrompt, installed, promptInstall, platform, browser };
 }
