@@ -14,7 +14,7 @@ export default function InstallAppTab() {
       </div>
       <h2 className="font-serif text-xl text-slate-50 mb-2">Installer l'application</h2>
       <p className="text-sm text-slate-400 mb-6">
-        Ajoutez Ridix Finance sur votre écran d'accueil pour l'ouvrir en un geste, comme une vraie application — sans passer par le navigateur.
+        Ajoutez Ridix sur votre écran d'accueil pour l'ouvrir en un geste, comme une vraie application — sans passer par le navigateur.
       </p>
 
       {installed ? (

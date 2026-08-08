@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["apple-touch-icon.png"],
       manifest: {
-        name: "RIDIX FINANCE",
-        short_name: "Ridix Finance",
+        name: "RIDIX",
+        short_name: "Ridix",
         description: "Le registre financier des commerçants, importateurs et exportateurs.",
         theme_color: "#0F1B2B",
         background_color: "#0F1B2B",

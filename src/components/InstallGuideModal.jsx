@@ -27,7 +27,7 @@ export default function InstallGuideModal({ onClose }) {
         {installed ? (
           <div className="text-center py-14 px-6">
             <CheckCircle2 size={30} className="text-emerald-400 mx-auto mb-3" />
-            <p className="text-sm text-slate-300">Ridix Finance est déjà installée sur cet appareil.</p>
+            <p className="text-sm text-slate-300">Ridix est déjà installée sur cet appareil.</p>
           </div>
         ) : (
           <>
@@ -128,7 +128,7 @@ function DesktopGuide({ canInstall, promptInstall, browser, isCurrentDevice }) {
       <ol className="space-y-3">
         <Step n="1">Ouvrez <span className="text-slate-100 font-medium">ridixfinance.com</span>.</Step>
         <Step n="2">Repérez l'icône d'installation <Monitor size={13} className="inline mx-1 text-amber-400" /> dans la barre d'adresse (à droite), ou le menu ⋮.</Step>
-        <Step n="3">Cliquez sur "Installer Ridix Finance".</Step>
+        <Step n="3">Cliquez sur "Installer Ridix".</Step>
       </ol>
     </>
   );

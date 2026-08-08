@@ -116,7 +116,7 @@ export function exportDossierFinancement(transactions, products, credits, compan
 
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
-  doc.text(`Document généré automatiquement le ${today.toLocaleDateString("fr-FR")} — Ridix Finance`, 14, 285);
+  doc.text(`Document généré automatiquement le ${today.toLocaleDateString("fr-FR")} — Ridix`, 14, 285);
 
   // ---------- Page 2 : Bilan d'activité ----------
   doc.addPage();

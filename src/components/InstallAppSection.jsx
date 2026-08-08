@@ -14,7 +14,7 @@ export default function InstallAppSection() {
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Application mobile</span>
           <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3 mb-4">Emportez votre registre partout, comme une vraie app</h2>
           <p className="text-slate-400 text-sm leading-relaxed mb-6">
-            Installez Ridix Finance directement sur l'écran d'accueil de votre téléphone — Android ou iPhone.
+            Installez Ridix directement sur l'écran d'accueil de votre téléphone — Android ou iPhone.
             Pas de Play Store, pas d'App Store : une icône, un lancement en plein écran, et votre registre toujours à portée de main.
           </p>
           <ul className="space-y-2 mb-6">
@@ -51,7 +51,7 @@ function PhoneMockup() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-slate-800 rounded-b-xl z-10" />
       <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
         <div className="w-16 h-16 rounded-2xl bg-gold flex items-center justify-center font-serif text-3xl font-bold text-ink">R</div>
-        <p className="font-serif text-sm text-slate-100">Ridix Finance</p>
+        <p className="font-serif text-sm text-slate-100">Ridix</p>
         <div className="w-full h-24 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
           <Smartphone size={22} className="text-gold-bright/60" />
         </div>

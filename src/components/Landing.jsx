@@ -101,7 +101,7 @@ export default function Landing({ onEnter }) {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <a href="#top" className="flex items-center gap-2 hover:opacity-90 transition-opacity shrink-0">
             <div className="w-8 h-8 rounded-md bg-gold text-ink flex items-center justify-center font-serif text-lg font-bold shrink-0">R</div>
-            <span className="font-serif text-base sm:text-lg text-slate-50 tracking-tight whitespace-nowrap">RIDIX FINANCE</span>
+            <span className="font-serif text-base sm:text-lg text-slate-50 tracking-tight whitespace-nowrap">RIDIX</span>
           </a>
           <nav className="hidden md:flex items-center gap-6 text-sm text-slate-400">
             <a href="#fonctionnalites" className="hover:text-slate-100">Fonctionnalités</a>
@@ -314,7 +314,7 @@ export default function Landing({ onEnter }) {
       </section>
 
       <footer className="border-t border-white/10 py-8 text-center text-xs text-slate-600 font-mono">
-        RIDIX FINANCE — pensé pour les commerçants, importateurs et exportateurs.
+        RIDIX — pensé pour les commerçants, importateurs et exportateurs.
       </footer>
 
       <InstallFloatingCTA />

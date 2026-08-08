@@ -70,7 +70,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
           <div className="w-12 h-12 rounded-md bg-amber-400 text-slate-950 flex items-center justify-center font-serif text-2xl font-bold mx-auto mb-3">
             R
           </div>
-          <h1 className="font-serif text-2xl text-slate-50">RIDIX FINANCE</h1>
+          <h1 className="font-serif text-2xl text-slate-50">RIDIX</h1>
           <p className="text-xs text-slate-500 uppercase tracking-[0.2em] mt-1">Commerçants · Importateurs · Exportateurs</p>
         </div>
 
