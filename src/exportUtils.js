@@ -1,7 +1,15 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatMontant } from "./constants";
+
+// jsPDF utilise par défaut une police (Helvetica) qui ne sait pas afficher l'espace fine
+// insécable utilisée par Intl.NumberFormat("fr-FR") comme séparateur de milliers — elle se
+// transforme visuellement en "/". On utilise donc un espace normal, uniquement pour le PDF.
+function formatMontant(v, devise) {
+  const rounded = Math.round(v || 0);
+  const withSpaces = Math.abs(rounded).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return (rounded < 0 ? "-" : "") + withSpaces + (devise ? " " + devise : "");
+}
 
 export function exportExcel(transactions, company) {
   const rows = transactions.map((t) => ({
@@ -185,7 +193,7 @@ export function exportDossierFinancement(transactions, products, credits, compan
       ["Valeur du stock actuel", formatMontant(valeurStock, devise)],
       ["Créances clients en cours", formatMontant(creancesOuvertes, devise)],
       ["Dettes fournisseurs en cours", formatMontant(dettesOuvertes, devise)],
-      ["Actif net estimé (stock + créances − dettes)", formatMontant(valeurStock + creancesOuvertes - dettesOuvertes, devise)],
+      ["Actif net estimé (stock + créances - dettes)", formatMontant(valeurStock + creancesOuvertes - dettesOuvertes, devise)],
     ],
     theme: "plain",
     styles: { fontSize: 11, cellPadding: 2 },
