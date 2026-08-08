@@ -58,7 +58,7 @@ export function exportPdf(transactions, company, kpis) {
       t.categorie,
       t.libelle || "—",
       `${t.sens === "recette" ? "+" : "-"}${t.montant} ${t.devise}`,
-      Math.round(t.montant_base).toLocaleString("fr-FR"),
+      formatMontant(t.montant_base, ""),
     ]),
     styles: { fontSize: 8 },
     headStyles: { fillColor: [30, 41, 59] },
