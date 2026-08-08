@@ -404,7 +404,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             { id: "bord", label: "Tableau de bord", icon: null, locked: false },
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
-            { id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" },
+            ...(isOwner ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -456,6 +456,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             <ShieldAlert size={16} className="text-indigo-300 mt-0.5 shrink-0" />
             <p className="text-xs text-indigo-200">
               Compte employé : vous pouvez ajouter des écritures, gérer le stock, enregistrer des crédits et importer un CSV.
+              Le tableau de bord et les écritures affichées ne concernent que <strong>vos propres saisies</strong> — pas les chiffres globaux de l'entreprise.
               Vous ne pouvez pas supprimer d'écritures ni modifier les paramètres de l'entreprise.
             </p>
           </div>
@@ -518,9 +519,9 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {/* ---------- KPI ---------- */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <KpiCard label="Chiffre d'affaires" value={formatMontant(kpis.ca, company.devise_base)} icon={Wallet} accent="border-l-emerald-400" />
-          <KpiCard label="Dépenses" value={formatMontant(kpis.dep, company.devise_base)} icon={TrendingDown} accent="border-l-rose-400" />
-          <KpiCard label="Profit net" value={formatMontant(kpis.profit, company.devise_base)} icon={TrendingUp} accent={kpis.profit >= 0 ? "border-l-amber-400" : "border-l-rose-500"} />
+          <KpiCard label={isOwner ? "Chiffre d'affaires" : "Vos recettes"} value={formatMontant(kpis.ca, company.devise_base)} icon={Wallet} accent="border-l-emerald-400" />
+          <KpiCard label={isOwner ? "Dépenses" : "Vos dépenses"} value={formatMontant(kpis.dep, company.devise_base)} icon={TrendingDown} accent="border-l-rose-400" />
+          <KpiCard label={isOwner ? "Profit net" : "Votre solde net"} value={formatMontant(kpis.profit, company.devise_base)} icon={TrendingUp} accent={kpis.profit >= 0 ? "border-l-amber-400" : "border-l-rose-500"} />
           <KpiCard label="Marge" value={`${kpis.marge.toFixed(1)} %`} icon={Percent} accent="border-l-indigo-400" />
         </div>
 
@@ -650,7 +651,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           <CreditsPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
         )}
 
-        {activeTab === "intelligence" && (
+        {activeTab === "intelligence" && isOwner && (
           <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
         )}
 
