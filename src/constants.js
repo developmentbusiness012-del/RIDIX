@@ -32,6 +32,16 @@ export const PALETTE = { local: "#818cf8", import: "#fbbf24", export: "#34d399",
 
 export const MOIS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
+export const PAYS_AFRIQUE = [
+  "Afrique du Sud", "Algérie", "Angola", "Bénin", "Botswana", "Burkina Faso", "Burundi",
+  "Cameroun", "Cap-Vert", "Comores", "Congo-Brazzaville", "Congo-Kinshasa (RDC)", "Côte d'Ivoire",
+  "Djibouti", "Égypte", "Érythrée", "Eswatini", "Éthiopie", "Gabon", "Gambie", "Ghana", "Guinée",
+  "Guinée-Bissau", "Guinée équatoriale", "Kenya", "Lesotho", "Liberia", "Libye", "Madagascar",
+  "Malawi", "Mali", "Maroc", "Maurice", "Mauritanie", "Mozambique", "Namibie", "Niger", "Nigeria",
+  "Ouganda", "Rwanda", "Sao Tomé-et-Principe", "Sénégal", "Seychelles", "Sierra Leone", "Somalie",
+  "Soudan", "Soudan du Sud", "Tanzanie", "Tchad", "Togo", "Tunisie", "Zambie", "Zimbabwe", "Autre",
+];
+
 export const PLANS = [
   {
     id: "freemium",

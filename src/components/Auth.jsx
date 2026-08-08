@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
-import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe } from "lucide-react";
 import ForgotPassword from "./ForgotPassword";
+import { PAYS_AFRIQUE } from "../constants";
 
 export default function Auth({ initialMode = "signin", onBack }) {
   const [mode, setMode] = useState(initialMode); // signin | signup | employee
@@ -9,6 +10,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const [country, setCountry] = useState("Cameroun");
   const [companyCode, setCompanyCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +25,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { account_type: "owner", company_name: companyName } },
+          options: { data: { account_type: "owner", company_name: companyName, country } },
         });
         if (error) throw error;
       } else if (mode === "employee") {
@@ -99,6 +101,20 @@ export default function Auth({ initialMode = "signin", onBack }) {
                   className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
                   placeholder="Ex : Maison de Négoce Douala"
                 />
+              </div>
+            )}
+
+            {mode === "signup" && (
+              <div>
+                <label className="flex items-center gap-1.5 text-xs text-slate-400 mb-1"><Globe size={12} /> Pays</label>
+                <select
+                  required
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
+                >
+                  {PAYS_AFRIQUE.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
               </div>
             )}
 

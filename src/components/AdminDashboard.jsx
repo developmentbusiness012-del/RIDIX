@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Users, UserCheck, Crown, Gift, Building2, Receipt, ArrowLeft, Loader2, BarChart3, MessageCircle } from "lucide-react";
+import { Users, UserCheck, Crown, Gift, Building2, Receipt, ArrowLeft, Loader2, BarChart3, MessageCircle, Globe2 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import AdminMessaging from "./AdminMessaging";
 import { InfoDialog } from "./Dialogs";
@@ -142,6 +142,22 @@ export default function AdminDashboard({ onBack }) {
           </ResponsiveContainer>
         </div>
 
+        <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4 mb-6">
+          <h3 className="font-serif text-sm text-slate-300 mb-3 flex items-center gap-1.5"><Globe2 size={14} className="text-amber-400" /> Utilisateurs par pays</h3>
+          {(stats.by_country || []).length === 0 ? (
+            <p className="text-xs text-slate-500">Aucune donnée pour l'instant.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {stats.by_country.map((c) => (
+                <div key={c.country} className="flex items-center justify-between bg-slate-800/40 border border-slate-800 rounded-md px-3 py-2">
+                  <span className="text-xs text-slate-300 truncate">{c.country}</span>
+                  <span className="font-mono text-sm text-amber-300 shrink-0 ml-2">{c.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="bg-slate-900/60 border border-slate-800 rounded-md overflow-hidden mb-10">
           <h3 className="font-serif text-sm text-slate-300 px-4 pt-4 pb-2">Utilisateurs ({(stats.users || []).length})</h3>
           <div className="overflow-x-auto">
@@ -151,6 +167,7 @@ export default function AdminDashboard({ onBack }) {
                   <th className="px-4 py-2 font-medium">Email</th>
                   <th className="px-2 py-2 font-medium">Rôle</th>
                   <th className="px-2 py-2 font-medium">Offre</th>
+                  <th className="px-2 py-2 font-medium">Pays</th>
                   <th className="px-2 py-2 font-medium">Entreprises</th>
                   <th className="px-2 py-2 font-medium">Inscrit le</th>
                   <th className="px-2 py-2 font-medium">Dernière connexion</th>
@@ -169,6 +186,7 @@ export default function AdminDashboard({ onBack }) {
                     <td className="px-2 py-2">
                       <span className={`text-xs ${u.plan === "premium" ? "text-amber-300" : "text-slate-400"}`}>{u.plan || "—"}</span>
                     </td>
+                    <td className="px-2 py-2 text-slate-400 text-xs">{u.country || "—"}</td>
                     <td className="px-2 py-2 text-slate-400 font-mono text-xs">{u.companies_count}</td>
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString("fr-FR") : "—"}</td>
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString("fr-FR") : "Jamais"}</td>
