@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ridixx-finance.vercel.app/sitemap.xml
