@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
@@ -19,6 +19,7 @@ import CreditsPanel from "./CreditsPanel";
 import IntelligencePanel from "./IntelligencePanel";
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
+import UserGuide from "./UserGuide";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
@@ -713,6 +714,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
 function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, checkoutLoading, planActionError }) {
   const [copied, setCopied] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(company.code);
@@ -727,6 +729,11 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
           <h3 className="font-serif text-lg text-slate-50">Paramètres</h3>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
         </div>
+
+        <button onClick={() => setShowGuide(true)}
+          className="w-full flex items-center gap-2.5 border border-slate-700 hover:border-amber-400/50 hover:bg-slate-800/50 rounded-md px-3 py-2.5 text-sm text-slate-200 mb-5 transition-colors">
+          <BookOpen size={16} className="text-amber-400" /> Guide d'utilisation
+        </button>
 
         <div className="mb-5">
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>
@@ -816,6 +823,7 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
           </ul>
         </div>
       </div>
+      {showGuide && <UserGuide onClose={() => setShowGuide(false)} />}
     </div>
   );
 }
