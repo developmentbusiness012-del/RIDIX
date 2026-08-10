@@ -180,17 +180,21 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   };
 
   const submitNewCompany = async (name) => {
+    const code = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
     const { data, error } = await supabase
       .from("companies")
-      .insert({ owner_id: session.user.id, name, profil: "mixte", devise_base: "XAF" })
+      .insert({ owner_id: session.user.id, name, profil: "mixte", devise_base: "XAF", code })
       .select()
       .single();
     if (!error && data) {
       setCompanies((prev) => [...prev, data]);
       setActiveId(data.id);
       setShowCompanyMenu(false);
+      setDialog(null);
+    } else {
+      console.error("createCompany failed", error);
+      setDialog({ type: "creationError", payload: error?.message });
     }
-    setDialog(null);
   };
 
   const [planActionError, setPlanActionError] = useState(null);
@@ -689,6 +693,14 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           confirmLabel="Créer"
           onSubmit={submitNewCompany}
           onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog?.type === "creationError" && (
+        <InfoDialog
+          title="Impossible de créer l'entreprise"
+          message={dialog.payload || "Une erreur inattendue est survenue. Réessayez dans un instant."}
+          danger
+          onClose={() => setDialog(null)}
         />
       )}
       {dialog?.type === "limitInfo" && (
