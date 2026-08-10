@@ -10,6 +10,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const [employeeName, setEmployeeName] = useState("");
   const [country, setCountry] = useState("Cameroun");
   const [companyCode, setCompanyCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,11 +33,11 @@ export default function Auth({ initialMode = "signin", onBack }) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { account_type: "employee" } },
+          options: { data: { account_type: "employee", full_name: employeeName } },
         });
         if (error) throw error;
         if (data.session) {
-          const { error: joinError } = await supabase.rpc("join_company_with_code", { p_code: companyCode });
+          const { error: joinError } = await supabase.rpc("join_company_with_code", { p_code: companyCode, p_name: employeeName });
           if (joinError) throw joinError;
         }
       } else {
@@ -115,6 +116,20 @@ export default function Auth({ initialMode = "signin", onBack }) {
                 >
                   {PAYS_AFRIQUE.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
+              </div>
+            )}
+
+            {mode === "employee" && (
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Votre nom</label>
+                <input
+                  required
+                  value={employeeName}
+                  onChange={(e) => setEmployeeName(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
+                  placeholder="Ex : Awa Ndjock"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">C'est ce nom que votre employeur verra dans ses paramètres.</p>
               </div>
             )}
 

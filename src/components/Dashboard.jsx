@@ -20,6 +20,7 @@ import IntelligencePanel from "./IntelligencePanel";
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import UserGuide from "./UserGuide";
+import EmployeeKpiModal from "./EmployeeKpiModal";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
@@ -715,6 +716,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, checkoutLoading, planActionError }) {
   const [copied, setCopied] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [viewingEmployee, setViewingEmployee] = useState(null);
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(company.code);
@@ -806,8 +808,10 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
             <div className="space-y-1.5">
               {employees.map((e) => (
                 <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm">
-                  <span className="text-slate-300">{e.email || e.user_id}</span>
-                  <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400">
+                  <button onClick={() => setViewingEmployee(e)} className="text-slate-300 hover:text-amber-300 text-left truncate flex-1">
+                    {e.name || e.email || "Employé"}
+                  </button>
+                  <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400 shrink-0 ml-2">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -824,6 +828,14 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
         </div>
       </div>
       {showGuide && <UserGuide onClose={() => setShowGuide(false)} />}
+      {viewingEmployee && (
+        <EmployeeKpiModal
+          employee={viewingEmployee}
+          companyId={company.id}
+          deviseBase={company.devise_base}
+          onClose={() => setViewingEmployee(null)}
+        />
+      )}
     </div>
   );
 }
