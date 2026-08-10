@@ -1,7 +1,7 @@
 import {
   Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
-  Boxes, HandCoins, Lock, Sparkles, FileText,
+  Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
@@ -64,9 +64,14 @@ const FEATURES = [
   },
   {
     icon: Users,
-    title: "Employés avec accès restreint",
-    desc: "Invitez votre équipe via un code entreprise unique, avec des permissions strictement encadrées.",
+    title: "Équipe avec suivi individuel",
+    desc: "Invitez vos employés via un code unique. Chacun ne voit que ses propres chiffres — vous, vous voyez la performance de chacun, nom par nom.",
     premium: true,
+  },
+  {
+    icon: WifiOff,
+    title: "Fonctionne hors connexion",
+    desc: "Ouvrez l'app et enregistrez vos écritures même sans réseau — tout se synchronise automatiquement dès que la connexion revient.",
   },
   {
     icon: MessageCircle,
@@ -105,6 +110,7 @@ export default function Landing({ onEnter }) {
           </a>
           <nav className="hidden md:flex items-center gap-6 text-sm text-slate-400">
             <a href="#fonctionnalites" className="hover:text-slate-100">Fonctionnalités</a>
+            <a href="#equipe" className="hover:text-slate-100">Équipe</a>
             <a href="#offres" className="hover:text-slate-100">Offres</a>
             <a href="#comment" className="hover:text-slate-100">Comment ça marche</a>
             <a href="#app" className="hover:text-slate-100">Application</a>
@@ -242,6 +248,56 @@ export default function Landing({ onEnter }) {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ---------- Système Responsable-Employé ---------- */}
+      <section id="equipe" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-white/10">
+        <div className="text-center mb-12">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Gestion d'équipe</span>
+          <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3 mb-3">Une équipe, sans jamais perdre le contrôle</h2>
+          <p className="text-slate-400 text-sm max-w-xl mx-auto">
+            Ajoutez vos vendeurs ou assistants en toute confiance : chacun saisit ses propres opérations,
+            mais seul vous avez la vue d'ensemble — et le détail, employé par employé.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-5 mb-6">
+          <div className="border border-gold/25 bg-gold/5 rounded-lg p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <Crown size={18} className="text-gold-bright" />
+              <h3 className="font-serif text-lg text-slate-50">Vous, le responsable</h3>
+            </div>
+            <ul className="space-y-2.5">
+              <li className="flex items-start gap-2 text-sm text-slate-300"><Check size={15} className="text-gold-bright mt-0.5 shrink-0" /> Invitez chaque employé via un code entreprise unique</li>
+              <li className="flex items-start gap-2 text-sm text-slate-300"><Check size={15} className="text-gold-bright mt-0.5 shrink-0" /> Consultez les chiffres globaux de toute l'entreprise</li>
+              <li className="flex items-start gap-2 text-sm text-slate-300"><Check size={15} className="text-gold-bright mt-0.5 shrink-0" /> Cliquez sur le nom d'un employé pour voir <strong className="text-slate-100">ses propres ventes, dépenses et marge</strong></li>
+              <li className="flex items-start gap-2 text-sm text-slate-300"><Check size={15} className="text-gold-bright mt-0.5 shrink-0" /> Retirez un accès à tout moment, en un clic</li>
+            </ul>
+          </div>
+
+          <div className="border border-white/10 bg-white/[0.03] rounded-lg p-6">
+            <div className="flex items-center gap-2.5 mb-4">
+              <Users size={18} className="text-slate-400" />
+              <h3 className="font-serif text-lg text-slate-50">Vos employés</h3>
+            </div>
+            <ul className="space-y-2.5">
+              <li className="flex items-start gap-2 text-sm text-slate-300"><Check size={15} className="text-forest-bright mt-0.5 shrink-0" /> Enregistrent ventes, dépenses, stock et crédits au quotidien</li>
+              <li className="flex items-start gap-2 text-sm text-slate-300"><Check size={15} className="text-forest-bright mt-0.5 shrink-0" /> Ne voient <strong className="text-slate-100">que leurs propres écritures</strong> — jamais les chiffres globaux</li>
+              <li className="flex items-start gap-2 text-sm text-rose-300/80"><Lock size={13} className="mt-1 shrink-0" /> Ne peuvent ni supprimer d'écritures ni modifier les paramètres</li>
+              <li className="flex items-start gap-2 text-sm text-rose-300/80"><Lock size={13} className="mt-1 shrink-0" /> Aucun accès à l'abonnement ni aux réglages de facturation</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border border-white/10 bg-white/[0.03] rounded-lg p-4">
+          <div className="w-9 h-9 rounded-md bg-gold/10 border border-gold/20 flex items-center justify-center shrink-0">
+            <Eye size={16} className="text-gold-bright" />
+          </div>
+          <p className="text-xs text-slate-400">
+            <span className="text-slate-100 font-medium">Nouveau —</span> dans Paramètres, cliquez sur le nom de n'importe quel employé pour ouvrir sa fiche
+            de performance individuelle : recettes, dépenses, solde net, marge et son historique d'écritures.
+          </p>
         </div>
       </section>
 
