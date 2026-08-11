@@ -210,7 +210,7 @@ export default function Landing({ onEnter }) {
             <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gold-bright bg-gold/10 border border-gold/20 rounded-full px-2 py-0.5 mb-3">
               🔥 Offre de lancement
             </span>
-            <h3 className="font-serif text-lg text-slate-50 mb-1">Stock, crédits & équipe illimitée dès 2 500 FCFA/mois</h3>
+            <h3 className="font-serif text-lg text-slate-50 mb-1">Stock, crédits & équipe illimitée dès 5 000 FCFA</h3>
             <p className="text-sm text-slate-400 max-w-md">Ne perdez plus une vente faute de stock, ni une créance client oubliée. Passez en Premium et pilotez tout votre commerce, pas seulement vos comptes.</p>
           </div>
           <button onClick={() => onEnter("signup")} className="shrink-0 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-5 py-2.5 text-sm transition-colors whitespace-nowrap">
@@ -308,17 +308,18 @@ export default function Landing({ onEnter }) {
           <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3 mb-3">Une offre pour chaque étape de votre croissance</h2>
           <p className="text-slate-400 text-sm">Commencez gratuitement, passez à Premium quand votre équipe grandit.</p>
         </div>
-        <div className="grid md:grid-cols-2 gap-5 mb-8">
+        <div className="grid md:grid-cols-3 gap-5 mb-8">
           {PLANS.map((p) => (
-            <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.id === "premium" ? "border-gold bg-gold/5" : "border-white/10 bg-white/[0.03]"}`}>
+            <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.planKey ? "border-gold bg-gold/5" : "border-white/10 bg-white/[0.03]"}`}>
               {p.promo && (
                 <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-full px-2 py-0.5 mb-2">
                   {p.promoLabel}
                 </span>
               )}
-              <div className="flex items-baseline justify-between mb-1">
-                <h3 className="font-serif font-semibold text-xl text-slate-50">{p.label}</h3>
-                <span className="text-sm font-mono text-gold-bright">
+              <div className="flex items-baseline justify-between mb-1 gap-2">
+                <h3 className="font-serif font-semibold text-lg text-slate-50">{p.label}</h3>
+                <span className="text-sm font-mono text-gold-bright text-right shrink-0">
+                  {p.originalPrice && <span className="block text-[10px] text-slate-600 line-through">{p.originalPrice}</span>}
                   {p.price}{p.period && <span className="text-slate-500 text-xs"> {p.period}</span>}
                 </span>
               </div>
@@ -332,7 +333,7 @@ export default function Landing({ onEnter }) {
               </ul>
               <button
                 onClick={() => onEnter("signup")}
-                className={`w-full rounded-md py-2.5 text-sm font-semibold transition-colors ${p.id === "premium" ? "bg-gold hover:bg-gold-bright text-ink" : "bg-white/10 hover:bg-white/15 text-slate-100"}`}
+                className={`w-full rounded-md py-2.5 text-sm font-semibold transition-colors ${p.planKey ? "bg-gold hover:bg-gold-bright text-ink" : "bg-white/10 hover:bg-white/15 text-slate-100"}`}
               >
                 Commencer avec {p.label}
               </button>

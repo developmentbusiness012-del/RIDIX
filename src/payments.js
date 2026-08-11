@@ -10,9 +10,16 @@ async function callFunction(name) {
   return data;
 }
 
-// Crée un panier Maketou et redirige immédiatement l'utilisateur vers le paiement.
-export async function startPremiumCheckout() {
-  const data = await callFunction("create-payment-cart");
+// Crée un panier Maketou pour la formule choisie ("2m" ou "2y") et redirige
+// immédiatement l'utilisateur vers le paiement.
+export async function startPremiumCheckout(planKey = "2m") {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("not_authenticated");
+  const { data, error } = await supabase.functions.invoke("create-payment-cart", {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+    body: { planKey },
+  });
+  if (error) throw error;
   if (!data?.redirectUrl) throw new Error("no_redirect_url");
   window.location.href = data.redirectUrl;
 }

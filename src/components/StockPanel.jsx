@@ -260,7 +260,7 @@ export function PremiumTeaser({ icon: Icon, title, pitch, benefits, onUpgrade, l
       </ul>
       <button onClick={() => onUpgrade("premium")} disabled={loading}
         className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-sm rounded-md px-5 py-2.5 disabled:opacity-60 flex items-center gap-2 mx-auto">
-        {loading && <Loader2 size={14} className="animate-spin" />} Débloquer avec Premium — 2 500 FCFA/mois
+        {loading && <Loader2 size={14} className="animate-spin" />} Débloquer avec Premium — dès 5 000 FCFA
       </button>
     </div>
   );

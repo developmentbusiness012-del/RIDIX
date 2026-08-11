@@ -57,11 +57,10 @@ export const PLANS = [
   },
   {
     id: "premium",
-    label: "Premium",
-    price: "2 500 FCFA",
-    period: "/ mois",
-    promo: true,
-    promoLabel: "🔥 Offre de lancement",
+    planKey: "2m",
+    label: "Premium — 2 mois",
+    price: "5 000 FCFA",
+    period: "/ 2 mois",
     tagline: "Pour piloter et faire grandir votre commerce",
     features: [
       "Tout Freemium, sans limite d'entreprises",
@@ -70,6 +69,22 @@ export const PLANS = [
       "Score de santé financière et prévisions de trésorerie",
       "Dossier de financement PDF, prêt pour votre banque",
       "Employés illimités, connectés via le code entreprise",
+    ],
+  },
+  {
+    id: "premium_2y",
+    planKey: "2y",
+    label: "Premium — 2 ans",
+    price: "50 000 FCFA",
+    originalPrice: "60 000 FCFA",
+    period: "/ 2 ans",
+    promo: true,
+    promoLabel: "🔥 Offre de lancement",
+    tagline: "Le meilleur tarif pour un engagement long terme",
+    features: [
+      "Tout ce qui est inclus dans Premium 2 mois",
+      "Le meilleur prix au mois sur la durée",
+      "Pas de renouvellement à gérer pendant 2 ans",
     ],
   },
 ];

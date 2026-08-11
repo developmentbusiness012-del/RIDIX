@@ -8,19 +8,19 @@ export default function Pricing({ userId, onDone }) {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
 
-  const choose = async (planId) => {
+  const choose = async (plan) => {
     setError(null);
-    setLoading(planId);
+    setLoading(plan.id);
     try {
-      if (planId === "premium") {
+      if (plan.planKey) {
         // On marque d'abord l'onboarding comme fait (en freemium) pour que l'utilisateur
         // retrouve son compte normalement s'il abandonne le paiement en cours de route.
         await supabase.from("account_settings").update({ onboarded: true }).eq("user_id", userId);
-        await startPremiumCheckout(); // redirige vers Maketou, ne revient pas ici
+        await startPremiumCheckout(plan.planKey); // redirige vers Maketou, ne revient pas ici
         return;
       }
-      await supabase.from("account_settings").update({ plan: planId, onboarded: true }).eq("user_id", userId);
-      onDone(planId);
+      await supabase.from("account_settings").update({ plan: plan.id, onboarded: true }).eq("user_id", userId);
+      onDone(plan.id);
     } catch (e) {
       console.error(e);
       setError("Impossible de démarrer le paiement. Réessayez dans un instant.");
@@ -43,17 +43,18 @@ export default function Pricing({ userId, onDone }) {
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 gap-5 mb-8">
+        <div className="grid md:grid-cols-3 gap-5 mb-8">
           {PLANS.map((p) => (
-            <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.id === "premium" ? "border-amber-400 bg-amber-400/5" : "border-slate-800 bg-slate-900/60"}`}>
+            <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.planKey ? (p.promo ? "border-amber-400 bg-amber-400/5" : "border-slate-700 bg-slate-900/60") : "border-slate-800 bg-slate-900/60"}`}>
               {p.promo && (
-                <span className="inline-block text-[10px] font-semibold uppercase tracking-wide bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-full px-2 py-0.5 mb-2">
+                <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-full px-2 py-0.5 mb-2">
                   {p.promoLabel}
                 </span>
               )}
-              <div className="flex items-baseline justify-between mb-1">
-                <h2 className="font-serif text-xl text-slate-50">{p.label}</h2>
-                <span className="text-sm font-mono text-amber-300">
+              <div className="flex items-baseline justify-between mb-1 gap-2">
+                <h2 className="font-serif text-lg text-slate-50">{p.label}</h2>
+                <span className="text-sm font-mono text-amber-300 text-right shrink-0">
+                  {p.originalPrice && <span className="block text-[10px] text-slate-600 line-through">{p.originalPrice}</span>}
                   {p.price}{p.period && <span className="text-slate-500 text-xs"> {p.period}</span>}
                 </span>
               </div>
@@ -66,14 +67,14 @@ export default function Pricing({ userId, onDone }) {
                 ))}
               </ul>
               <button
-                onClick={() => choose(p.id)}
+                onClick={() => choose(p)}
                 disabled={loading !== null}
                 className={`w-full rounded-md py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                  p.id === "premium" ? "bg-amber-400 hover:bg-amber-300 text-slate-950" : "bg-slate-800 hover:bg-slate-700 text-slate-100"
+                  p.planKey ? "bg-amber-400 hover:bg-amber-300 text-slate-950" : "bg-slate-800 hover:bg-slate-700 text-slate-100"
                 } disabled:opacity-60`}
               >
                 {loading === p.id && <Loader2 size={14} className="animate-spin" />}
-                {p.id === "premium" ? "Payer et passer en Premium" : `Choisir ${p.label}`}
+                {p.planKey ? "Payer et passer en Premium" : `Choisir ${p.label}`}
               </button>
             </div>
           ))}

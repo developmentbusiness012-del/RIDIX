@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
@@ -21,6 +21,7 @@ import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import UserGuide from "./UserGuide";
 import EmployeeKpiModal from "./EmployeeKpiModal";
+import PremiumPlanPicker from "./PremiumPlanPicker";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
@@ -203,14 +204,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   const changePlan = async (nextPlan) => {
     setPlanActionError(null);
     if (nextPlan === "premium") {
-      setCheckoutLoading(true);
-      try {
-        await startPremiumCheckout(); // redirige vers Maketou
-      } catch (e) {
-        console.error(e);
-        setPlanActionError("Impossible de démarrer le paiement. Réessayez dans un instant.");
-        setCheckoutLoading(false);
-      }
+      setDialog({ type: "premiumPicker" });
       return;
     }
     const { error } = await supabase.from("account_settings").update({ plan: nextPlan }).eq("user_id", session.user.id);
@@ -695,6 +689,9 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           onCancel={() => setDialog(null)}
         />
       )}
+      {dialog?.type === "premiumPicker" && (
+        <PremiumPlanPicker onClose={() => setDialog(null)} />
+      )}
       {dialog?.type === "creationError" && (
         <InfoDialog
           title="Impossible de créer l'entreprise"
@@ -725,10 +722,11 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   );
 }
 
-function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, checkoutLoading, planActionError }) {
+function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, planActionError }) {
   const [copied, setCopied] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
+  const [tab, setTab] = useState("general");
 
   const copyCode = async () => {
     await navigator.clipboard.writeText(company.code);
@@ -736,107 +734,156 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const TABS = [
+    { id: "general", label: "Général", icon: Building2 },
+    { id: "abonnement", label: "Abonnement", icon: CreditCard },
+    { id: "equipe", label: "Équipe", icon: Users },
+  ];
+
   return (
     <div className="fixed inset-0 bg-slate-950/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-t-xl sm:rounded-xl w-full sm:max-w-lg p-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-t-xl sm:rounded-xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 pt-5 mb-3">
           <h3 className="font-serif text-lg text-slate-50">Paramètres</h3>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
         </div>
 
-        <button onClick={() => setShowGuide(true)}
-          className="w-full flex items-center gap-2.5 border border-slate-700 hover:border-amber-400/50 hover:bg-slate-800/50 rounded-md px-3 py-2.5 text-sm text-slate-200 mb-5 transition-colors">
-          <BookOpen size={16} className="text-amber-400" /> Guide d'utilisation
-        </button>
-
-        <div className="mb-5">
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[11px] text-slate-500 block mb-1">Profil</label>
-              <select value={company.profil} onChange={(e) => onUpdateCompany({ profil: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
-                {PROFILS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[11px] text-slate-500 block mb-1">Devise de base</label>
-              <select value={company.devise_base} onChange={(e) => onUpdateCompany({ devise_base: e.target.value })}
-                className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
-                {DEVISES.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-          </div>
+        <div className="flex gap-1 px-5 border-b border-slate-800">
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 text-sm px-2.5 py-2.5 border-b-2 -mb-px transition-colors ${tab === t.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+              <t.icon size={14} /> {t.label}
+              {t.id === "equipe" && employees.length > 0 && <span className="text-[10px] font-mono text-slate-500">({employees.length})</span>}
+            </button>
+          ))}
         </div>
 
-        <div className="mb-5">
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Offre actuelle</p>
-          <div className="grid grid-cols-2 gap-2">
-            {PLANS.map((p) => (
-              <button key={p.id} onClick={() => onChangePlan(p.id)} disabled={checkoutLoading || plan === p.id}
-                className={`text-left rounded-md border px-3 py-2 text-sm disabled:opacity-60 flex items-center justify-between gap-2 ${plan === p.id ? "border-amber-400 bg-amber-400/10 text-amber-300" : "border-slate-700 text-slate-400"}`}>
-                <span>
-                  <span className="block font-medium">{p.label}</span>
-                  <span className="block text-[11px] text-slate-500">{p.id === "premium" && plan !== "premium" ? "Payer via Maketou" : p.tagline}</span>
-                </span>
-                {checkoutLoading && p.id === "premium" && plan !== "premium" && <Loader2 size={14} className="animate-spin shrink-0" />}
+        <div className="p-5">
+          {tab === "general" && (
+            <div className="space-y-5">
+              <button onClick={() => setShowGuide(true)}
+                className="w-full flex items-center gap-2.5 border border-slate-700 hover:border-amber-400/50 hover:bg-slate-800/50 rounded-md px-3 py-2.5 text-sm text-slate-200 transition-colors">
+                <BookOpen size={16} className="text-amber-400" /> Guide d'utilisation
               </button>
-            ))}
-          </div>
-          {planActionError && <p className="text-[11px] text-rose-400 mt-2">{planActionError}</p>}
-          {plan === "premium" && premiumExpiresAt && (
-            <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-[11px] text-slate-500">
-                Actif jusqu'au {new Date(premiumExpiresAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-              </p>
-              <button onClick={() => onChangePlan("premium")} disabled={checkoutLoading}
-                className="text-[11px] text-amber-400 hover:text-amber-300 underline disabled:opacity-60">
-                Renouveler maintenant
-              </button>
+
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-slate-500 block mb-1">Profil</label>
+                    <select value={company.profil} onChange={(e) => onUpdateCompany({ profil: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
+                      {PROFILS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 block mb-1">Devise de base</label>
+                    <select value={company.devise_base} onChange={(e) => onUpdateCompany({ devise_base: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
+                      {DEVISES.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
-        </div>
 
-        <div className="mb-5">
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Code entreprise</p>
-          <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-md px-3 py-2">
-            <span className="font-mono text-amber-300 tracking-widest flex-1">{company.code}</span>
-            <button onClick={copyCode} className="text-slate-400 hover:text-slate-200">
-              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-            </button>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Communiquez ce code à vos employés pour qu'ils rejoignent l'entreprise (offre Premium requise).
-          </p>
-        </div>
+          {tab === "abonnement" && (
+            <div className="space-y-4">
+              <div className={`rounded-lg border p-4 ${plan === "premium" ? "border-amber-400/40 bg-amber-400/5" : "border-slate-700 bg-slate-800/40"}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-serif text-base text-slate-50 flex items-center gap-2">
+                    {plan === "premium" && <Crown size={15} className="text-amber-400" />}
+                    {plan === "premium" ? "Premium actif" : "Freemium"}
+                  </span>
+                  <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${plan === "premium" ? "text-amber-300 border-amber-700" : "text-slate-400 border-slate-600"}`}>
+                    {plan === "premium" ? "actif" : "gratuit"}
+                  </span>
+                </div>
+                {plan === "premium" && premiumExpiresAt ? (
+                  <p className="text-xs text-slate-400">
+                    Actif jusqu'au <span className="text-slate-200">{new Date(premiumExpiresAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span>
+                  </p>
+                ) : plan === "premium" ? (
+                  <p className="text-xs text-slate-400">Accès Premium accordé, sans échéance.</p>
+                ) : (
+                  <p className="text-xs text-slate-400">Stock, crédits, intelligence financière et équipe sont réservés à l'offre Premium.</p>
+                )}
+              </div>
 
-        <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5"><Users size={13} /> Employés ({employees.length})</p>
-          {plan !== "premium" ? (
-            <p className="text-xs text-slate-500 bg-slate-800/60 rounded-md px-3 py-2">Passez en Premium pour inviter des employés.</p>
-          ) : employees.length === 0 ? (
-            <p className="text-xs text-slate-500 bg-slate-800/60 rounded-md px-3 py-2">Aucun employé n'a encore rejoint cette entreprise.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {employees.map((e) => (
-                <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm">
-                  <button onClick={() => setViewingEmployee(e)} className="text-slate-300 hover:text-amber-300 text-left truncate flex-1">
-                    {e.name || e.email || "Employé"}
-                  </button>
-                  <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400 shrink-0 ml-2">
-                    <Trash2 size={13} />
+              {planActionError && <p className="text-[11px] text-rose-400">{planActionError}</p>}
+
+              <button onClick={() => onChangePlan("premium")}
+                className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium rounded-md py-2.5 text-sm flex items-center justify-center gap-2">
+                <Crown size={14} /> {plan === "premium" ? "Renouveler maintenant" : "Passer en Premium"}
+              </button>
+
+              {plan === "premium" && (
+                <button onClick={() => onChangePlan("freemium")}
+                  className="w-full text-[11px] text-slate-500 hover:text-slate-300 text-center underline">
+                  Repasser en Freemium
+                </button>
+              )}
+
+              <div className="pt-2 border-t border-slate-800">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wide mb-2">Formules disponibles</p>
+                <div className="space-y-1.5">
+                  {PLANS.filter((p) => p.planKey).map((p) => (
+                    <div key={p.planKey} className="flex items-center justify-between text-xs bg-slate-800/40 rounded-md px-3 py-2">
+                      <span className="text-slate-300">{p.label}</span>
+                      <span className="font-mono text-amber-300">{p.price}{p.originalPrice && <span className="text-slate-600 line-through ml-1.5">{p.originalPrice}</span>}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "equipe" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Code entreprise</p>
+                <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-md px-3 py-2">
+                  <span className="font-mono text-amber-300 tracking-widest flex-1">{company.code}</span>
+                  <button onClick={copyCode} className="text-slate-400 hover:text-slate-200">
+                    {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                   </button>
                 </div>
-              ))}
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Communiquez ce code à vos employés pour qu'ils rejoignent l'entreprise (offre Premium requise).
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Employés ({employees.length})</p>
+                {plan !== "premium" ? (
+                  <p className="text-xs text-slate-500 bg-slate-800/60 rounded-md px-3 py-2">Passez en Premium pour inviter des employés.</p>
+                ) : employees.length === 0 ? (
+                  <p className="text-xs text-slate-500 bg-slate-800/60 rounded-md px-3 py-2">Aucun employé n'a encore rejoint cette entreprise.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {employees.map((e) => (
+                      <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm">
+                        <button onClick={() => setViewingEmployee(e)} className="text-slate-300 hover:text-amber-300 text-left truncate flex-1">
+                          {e.name || e.email || "Employé"}
+                        </button>
+                        <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400 shrink-0 ml-2">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wide mb-2">Restrictions employé</p>
+                <ul className="space-y-1">
+                  {EMPLOYEE_RESTRICTIONS.map((r) => <li key={r} className="text-[11px] text-slate-500">• {r}</li>)}
+                </ul>
+              </div>
             </div>
           )}
-        </div>
-
-        <div className="mt-5 pt-4 border-t border-slate-800">
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Restrictions employé</p>
-          <ul className="space-y-1">
-            {EMPLOYEE_RESTRICTIONS.map((r) => <li key={r} className="text-[11px] text-slate-500">• {r}</li>)}
-          </ul>
         </div>
       </div>
       {showGuide && <UserGuide onClose={() => setShowGuide(false)} />}
