@@ -36,13 +36,16 @@ export function ConfirmDialog({ title, message, confirmLabel = "Confirmer", dang
 }
 
 // Remplace window.prompt() — champ texte ou nombre dans une vraie fenêtre de l'app.
-export function PromptDialog({ title, label, type = "text", defaultValue = "", placeholder = "", confirmLabel = "Valider", onSubmit, onCancel }) {
+// Variante "confirmWord" : pour les actions irréversibles, exige de retaper un mot exact.
+export function PromptDialog({ title, label, type = "text", defaultValue = "", placeholder = "", confirmLabel = "Valider", confirmWord = null, danger = false, onSubmit, onCancel }) {
   const [value, setValue] = useState(defaultValue);
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!value || (type === "number" && Number(value) <= 0)) return;
+    if (!value) return;
+    if (confirmWord && value.trim().toUpperCase() !== confirmWord.toUpperCase()) return;
+    if (!confirmWord && type === "number" && Number(value) <= 0) return;
     setLoading(true);
     await onSubmit(type === "number" ? Number(value) : value);
     setLoading(false);
@@ -69,7 +72,8 @@ export function PromptDialog({ title, label, type = "text", defaultValue = "", p
           <button type="button" onClick={onCancel} disabled={loading} className="text-sm px-3 py-2 rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-60">
             Annuler
           </button>
-          <button type="submit" disabled={loading} className="text-sm px-3 py-2 rounded-md font-medium bg-amber-400 hover:bg-amber-300 text-slate-950 disabled:opacity-60 flex items-center gap-1.5">
+          <button type="submit" disabled={loading || (confirmWord && value.trim().toUpperCase() !== confirmWord.toUpperCase())}
+            className={`text-sm px-3 py-2 rounded-md font-medium disabled:opacity-40 flex items-center gap-1.5 ${danger ? "bg-rose-500 hover:bg-rose-400 text-white" : "bg-amber-400 hover:bg-amber-300 text-slate-950"}`}>
             {loading && <Loader2 size={13} className="animate-spin" />} {confirmLabel}
           </button>
         </div>

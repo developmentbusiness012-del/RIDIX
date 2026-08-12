@@ -213,6 +213,20 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
   const removeEmployee = (id) => setDialog({ type: "removeEmployee", payload: id });
 
+  const deleteAccount = () => setDialog({ type: "deleteAccount" });
+
+  const confirmDeleteAccount = async () => {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const { error } = await supabase.functions.invoke("delete-account", {
+      headers: { Authorization: `Bearer ${currentSession.access_token}` },
+    });
+    if (error) {
+      setDialog({ type: "creationError", payload: "Impossible de supprimer le compte. Réessayez ou contactez le support." });
+      return;
+    }
+    await supabase.auth.signOut();
+  };
+
   const confirmRemoveEmployee = async () => {
     const id = dialog.payload;
     const { error } = await supabase.from("company_members").delete().eq("id", id);
@@ -671,6 +685,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           onChangePlan={changePlan}
           onRemoveEmployee={removeEmployee}
           onUpdateCompany={updateCompany}
+          onDeleteAccount={deleteAccount}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -686,6 +701,18 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           defaultValue="Nouvelle entreprise"
           confirmLabel="Créer"
           onSubmit={submitNewCompany}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {dialog?.type === "deleteAccount" && (
+        <PromptDialog
+          title="Supprimer définitivement mon compte"
+          label='Cette action est irréversible : toutes vos données, entreprises et écritures seront supprimées. Tapez "SUPPRIMER" pour confirmer.'
+          confirmWord="SUPPRIMER"
+          confirmLabel="Supprimer mon compte"
+          danger
+          placeholder="SUPPRIMER"
+          onSubmit={confirmDeleteAccount}
           onCancel={() => setDialog(null)}
         />
       )}
@@ -722,7 +749,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   );
 }
 
-function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onClose, planActionError }) {
+function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onDeleteAccount, onClose, planActionError }) {
   const [copied, setCopied] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
@@ -784,6 +811,17 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
                     </select>
                   </div>
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <p className="text-[11px] text-rose-400/80 uppercase tracking-wide mb-2 font-mono">Zone dangereuse</p>
+                <button onClick={onDeleteAccount}
+                  className="w-full flex items-center justify-center gap-2 border border-rose-900/50 hover:bg-rose-950/30 rounded-md px-3 py-2.5 text-sm text-rose-400 transition-colors">
+                  <Trash2 size={14} /> Supprimer mon compte et mes données
+                </button>
+                <p className="text-[10px] text-slate-600 mt-1.5">
+                  Action définitive et irréversible. Supprime votre compte, vos entreprises et toutes vos données associées.
+                </p>
               </div>
             </div>
           )}
