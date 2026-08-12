@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
@@ -6,6 +7,7 @@ import {
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
 import InstallFloatingCTA from "./InstallFloatingCTA";
+import LegalDocsModal from "./LegalDocsModal";
 
 const FEATURES = [
   {
@@ -99,6 +101,7 @@ const TAG_STYLES = {
 };
 
 export default function Landing({ onEnter }) {
+  const [showLegal, setShowLegal] = useState(null);
   return (
     <div id="top" className="min-h-screen bg-ink text-slate-100 font-sans">
       {/* ---------- Nav ---------- */}
@@ -371,8 +374,14 @@ export default function Landing({ onEnter }) {
       </section>
 
       <footer className="border-t border-white/10 py-8 text-center text-xs text-slate-600 font-mono">
-        RIDIX — pensé pour les commerçants, importateurs et exportateurs.
+        <p className="mb-2">RIDIX — pensé pour les commerçants, importateurs et exportateurs.</p>
+        <div className="flex items-center justify-center gap-4">
+          <button onClick={() => setShowLegal("cgu")} className="hover:text-slate-300 underline">Conditions d'utilisation</button>
+          <button onClick={() => setShowLegal("confidentialite")} className="hover:text-slate-300 underline">Confidentialité</button>
+        </div>
       </footer>
+
+      {showLegal && <LegalDocsModal initialTab={showLegal} onClose={() => setShowLegal(null)} />}
 
       <InstallFloatingCTA />
     </div>

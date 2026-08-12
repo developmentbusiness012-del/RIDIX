@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "../supabaseClient";
 import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe } from "lucide-react";
 import ForgotPassword from "./ForgotPassword";
+import LegalDocsModal from "./LegalDocsModal";
 import { PAYS_AFRIQUE } from "../constants";
 
 export default function Auth({ initialMode = "signin", onBack }) {
@@ -13,6 +14,8 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [employeeName, setEmployeeName] = useState("");
   const [country, setCountry] = useState("Cameroun");
   const [companyCode, setCompanyCode] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showLegal, setShowLegal] = useState(null); // 'cgu' | 'confidentialite' | null
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
@@ -20,6 +23,10 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (mode !== "signin" && !acceptedTerms) {
+      setError("Vous devez accepter les Conditions Générales d'Utilisation et la Politique de confidentialité pour continuer.");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -187,11 +194,32 @@ export default function Auth({ initialMode = "signin", onBack }) {
               )}
             </div>
 
+            {mode !== "signin" && (
+              <label className="flex items-start gap-2.5 text-xs text-slate-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-0.5 w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-amber-400 shrink-0"
+                />
+                <span>
+                  J'ai lu et j'accepte les{" "}
+                  <button type="button" onClick={() => setShowLegal("cgu")} className="text-amber-400 hover:text-amber-300 underline">
+                    Conditions Générales d'Utilisation
+                  </button>{" "}
+                  et la{" "}
+                  <button type="button" onClick={() => setShowLegal("confidentialite")} className="text-amber-400 hover:text-amber-300 underline">
+                    Politique de confidentialité
+                  </button>.
+                </span>
+              </label>
+            )}
+
             {error && <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/30 rounded-md px-3 py-2">{error}</p>}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode !== "signin" && !acceptedTerms)}
               className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 font-medium rounded-md py-2.5 text-sm transition-colors flex items-center justify-center gap-2"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
@@ -203,6 +231,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
           Aucune confirmation par email n'est requise : l'accès est immédiat après inscription.
         </p>
       </div>
+      {showLegal && <LegalDocsModal initialTab={showLegal} onClose={() => setShowLegal(null)} />}
     </div>
   );
 }
