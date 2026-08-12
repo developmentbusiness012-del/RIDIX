@@ -7,7 +7,7 @@ import InstallGuideModal from "./InstallGuideModal";
 // installée sur l'appareil. Un "x" le masque juste pour la session en cours
 // (il revient à la prochaine ouverture tant que l'app n'est toujours pas installée).
 export default function InstallFloatingCTA() {
-  const { installed } = useInstallPrompt();
+  const { installed, inAppBrowser } = useInstallPrompt();
   const [dismissed, setDismissed] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -16,15 +16,19 @@ export default function InstallFloatingCTA() {
   return (
     <>
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-sm">
-        <div className="flex items-center gap-3 bg-slate-900 border border-amber-400/30 rounded-full pl-4 pr-2 py-2 shadow-2xl shadow-black/40">
+        <div className={`flex items-center gap-3 bg-slate-900 border rounded-full pl-4 pr-2 py-2 shadow-2xl shadow-black/40 ${inAppBrowser ? "border-amber-500/50" : "border-amber-400/30"}`}>
           <span className="text-xs text-slate-200 flex-1">
-            <span className="font-medium">Installez l'app</span> — accès en un tap, même hors ligne.
+            {inAppBrowser ? (
+              <><span className="font-medium text-amber-300">Installation impossible ici</span> — ouvrez dans Chrome/Safari.</>
+            ) : (
+              <><span className="font-medium">Installez l'app</span> — accès en un tap, même hors ligne.</>
+            )}
           </span>
           <button
             onClick={() => setShowGuide(true)}
             className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-xs rounded-full px-3 py-2 shrink-0"
           >
-            <Download size={13} /> Installer
+            <Download size={13} /> {inAppBrowser ? "Voir comment" : "Installer"}
           </button>
           <button onClick={() => setDismissed(true)} className="text-slate-600 hover:text-slate-300 p-1 shrink-0" title="Masquer pour cette session">
             <X size={14} />

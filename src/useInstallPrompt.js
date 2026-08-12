@@ -52,5 +52,17 @@ export function useInstallPrompt() {
     return "other";
   })();
 
-  return { canInstall: !!deferredPrompt, installed, promptInstall, platform, browser };
+  // Les navigateurs intégrés (WhatsApp, Facebook, Instagram, Messenger) bloquent
+  // l'installation d'une app web, quel que soit le bouton sur lequel on appuie.
+  // C'est la cause la plus fréquente de "l'installation ne marche pas".
+  const inAppBrowser = (() => {
+    const ua = window.navigator.userAgent || "";
+    if (/\bWhatsApp\b/i.test(ua)) return "whatsapp";
+    if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "facebook";
+    if (/Instagram/i.test(ua)) return "instagram";
+    if (/\bLine\//i.test(ua)) return "line";
+    return null;
+  })();
+
+  return { canInstall: !!deferredPrompt, installed, promptInstall, platform, browser, inAppBrowser };
 }
