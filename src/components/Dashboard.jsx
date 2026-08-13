@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -14,9 +14,9 @@ import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_R
 import TransactionForm from "./TransactionForm";
 import ImportCsv from "./ImportCsv";
 import MessagesPanel from "./MessagesPanel";
-import StockPanel from "./StockPanel";
-import CreditsPanel from "./CreditsPanel";
-import IntelligencePanel from "./IntelligencePanel";
+const StockPanel = lazy(() => import("./StockPanel"));
+const CreditsPanel = lazy(() => import("./CreditsPanel"));
+const IntelligencePanel = lazy(() => import("./IntelligencePanel"));
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import UserGuide from "./UserGuide";
@@ -658,15 +658,21 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         )}
 
         {activeTab === "stock" && (
-          <StockPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          <Suspense fallback={<PanelLoading />}>
+            <StockPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          </Suspense>
         )}
 
         {activeTab === "credits" && (
-          <CreditsPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          <Suspense fallback={<PanelLoading />}>
+            <CreditsPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          </Suspense>
         )}
 
         {activeTab === "intelligence" && isOwner && (
-          <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          <Suspense fallback={<PanelLoading />}>
+            <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          </Suspense>
         )}
 
         {activeTab === "app" && <InstallAppTab />}
@@ -933,6 +939,14 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
           onClose={() => setViewingEmployee(null)}
         />
       )}
+    </div>
+  );
+}
+
+function PanelLoading() {
+  return (
+    <div className="flex items-center gap-2 text-slate-500 text-sm py-14 justify-center">
+      <Loader2 className="animate-spin" size={16} /> Chargement…
     </div>
   );
 }

@@ -1,7 +1,3 @@
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
 // jsPDF utilise par défaut une police (Helvetica) qui ne sait pas afficher l'espace fine
 // insécable utilisée par Intl.NumberFormat("fr-FR") comme séparateur de milliers — elle se
 // transforme visuellement en "/". On utilise donc un espace normal, uniquement pour le PDF.
@@ -11,7 +7,11 @@ function formatMontant(v, devise) {
   return (rounded < 0 ? "-" : "") + withSpaces + (devise ? " " + devise : "");
 }
 
-export function exportExcel(transactions, company) {
+// Les librairies d'export (xlsx, jsPDF) sont assez lourdes : on ne les charge
+// qu'au moment où l'utilisateur clique réellement sur un bouton d'export,
+// plutôt que de les inclure dans le chargement initial de l'application.
+export async function exportExcel(transactions, company) {
+  const XLSX = await import("xlsx");
   const rows = transactions.map((t) => ({
     Date: t.date,
     Sens: t.sens === "recette" ? "Recette" : "Dépense",
@@ -30,7 +30,11 @@ export function exportExcel(transactions, company) {
   XLSX.writeFile(wb, `ecritures_${company.name.replace(/\s+/g, "_")}.xlsx`);
 }
 
-export function exportPdf(transactions, company, kpis) {
+export async function exportPdf(transactions, company, kpis) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ]);
   const doc = new jsPDF();
   doc.setFontSize(16);
   doc.text(company.name, 14, 18);
@@ -70,7 +74,11 @@ export function exportPdf(transactions, company, kpis) {
 // ---------- Pilier 3 : Dossier de financement (Premium) ----------
 // Document professionnel destiné à être partagé avec une banque ou un investisseur :
 // historique, indicateurs de fiabilité, score de santé, projection de trésorerie.
-export function exportDossierFinancement(transactions, products, credits, company, analysis) {
+export async function exportDossierFinancement(transactions, products, credits, company, analysis) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ]);
   const doc = new jsPDF();
   const devise = company.devise_base;
   const pageWidth = doc.internal.pageSize.getWidth();

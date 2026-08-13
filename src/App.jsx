@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "./supabaseClient";
 import Landing from "./components/Landing";
 import Auth from "./components/Auth";
 import Pricing from "./components/Pricing";
 import Dashboard from "./components/Dashboard";
-import AdminDashboard from "./components/AdminDashboard";
 import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { pollPayment } from "./payments";
+import { cacheGet, cacheSet } from "./offlineQueue";
+
+const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
 
 function PaymentReturnOverlay({ onResolved }) {
   const [state, setState] = useState("checking"); // checking | completed | failed | timeout
@@ -95,23 +97,41 @@ export default function App() {
 
   const resolveProfile = useCallback(async (userId) => {
     setResolving(true);
-    // Tentative propriétaire
-    const { data: ownerSettings } = await supabase.from("account_settings").select("*").eq("user_id", userId).maybeSingle();
-    if (ownerSettings) {
-      setProfile({ role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin, premiumExpiresAt: ownerSettings.premium_expires_at });
+    try {
+      // Tentative propriétaire
+      const { data: ownerSettings, error: e1 } = await supabase.from("account_settings").select("*").eq("user_id", userId).maybeSingle();
+      if (e1) throw e1;
+      if (ownerSettings) {
+        const p = { role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin, premiumExpiresAt: ownerSettings.premium_expires_at };
+        cacheSet(`profile_${userId}`, p);
+        setProfile(p);
+        setResolving(false);
+        return;
+      }
+      // Tentative employé
+      const { data: membership, error: e2 } = await supabase.from("company_members").select("*, companies(*)").eq("user_id", userId).maybeSingle();
+      if (e2) throw e2;
+      if (membership) {
+        const { data: ownerPlan } = await supabase.from("account_settings").select("plan").eq("user_id", membership.companies.owner_id).maybeSingle();
+        const p = { role: "employe", plan: ownerPlan?.plan || "premium", onboarded: true };
+        cacheSet(`profile_${userId}`, p);
+        setProfile(p);
+        setResolving(false);
+        return;
+      }
+      // Compte tout juste créé, le trigger n'a pas encore fini (rare) : on retente une fois
+      setTimeout(() => resolveProfile(userId), 900);
+    } catch {
+      // Hors ligne ou erreur réseau : on retombe sur le dernier profil connu plutôt
+      // que de rester bloqué indéfiniment sur l'écran de chargement.
+      const cached = cacheGet(`profile_${userId}`);
+      if (cached) {
+        setProfile(cached);
+      } else {
+        setProfile({ role: "owner", plan: "freemium", onboarded: true, offlineNoCache: true });
+      }
       setResolving(false);
-      return;
     }
-    // Tentative employé
-    const { data: membership } = await supabase.from("company_members").select("*, companies(*)").eq("user_id", userId).maybeSingle();
-    if (membership) {
-      const { data: ownerPlan } = await supabase.from("account_settings").select("plan").eq("user_id", membership.companies.owner_id).maybeSingle();
-      setProfile({ role: "employe", plan: ownerPlan?.plan || "premium", onboarded: true });
-      setResolving(false);
-      return;
-    }
-    // Compte tout juste créé, le trigger n'a pas encore fini (rare) : on retente une fois
-    setTimeout(() => resolveProfile(userId), 900);
   }, []);
 
   useEffect(() => {
@@ -155,6 +175,18 @@ export default function App() {
       </div>
     );
   }
+  if (profile.offlineNoCache) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-center px-6">
+        <div>
+          <p className="text-slate-200 font-serif text-lg mb-2">Connexion requise</p>
+          <p className="text-slate-500 text-sm max-w-xs mx-auto">
+            Ouvrez RIDIX une première fois avec une connexion internet pour charger vos données — vous pourrez ensuite l'utiliser hors ligne normalement.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const paymentOverlay = showPaymentReturn && (
     <PaymentReturnOverlay
       onResolved={(plan) => {
@@ -173,7 +205,11 @@ export default function App() {
     );
   }
   if (adminView && profile.isAdmin) {
-    return <AdminDashboard onBack={() => setAdminView(false)} />;
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400"><Loader2 className="animate-spin" size={18} /></div>}>
+        <AdminDashboard onBack={() => setAdminView(false)} />
+      </Suspense>
+    );
   }
   return (
     <>
