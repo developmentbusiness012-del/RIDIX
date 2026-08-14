@@ -22,6 +22,7 @@ import InstallFloatingCTA from "./InstallFloatingCTA";
 import UserGuide from "./UserGuide";
 import EmployeeKpiModal from "./EmployeeKpiModal";
 import PremiumPlanPicker from "./PremiumPlanPicker";
+import WelcomeModal from "./WelcomeModal";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
@@ -170,6 +171,17 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   };
 
   const [dialog, setDialog] = useState(null); // { type: 'createCompany'|'limitInfo'|'removeEmployee', payload }
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try {
+      return !localStorage.getItem(`ridix_welcomed_${session.user.id}`);
+    } catch {
+      return false;
+    }
+  });
+  const dismissWelcome = () => {
+    try { localStorage.setItem(`ridix_welcomed_${session.user.id}`, "1"); } catch {}
+    setShowWelcome(false);
+  };
 
   const createCompany = () => {
     if (plan === "freemium" && companies.length >= 2) {
@@ -699,6 +711,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         <MessagesPanel session={session} onClose={() => setShowMessages(false)} onRead={() => setUnreadCount(0)} />
       )}
       <InstallFloatingCTA />
+
+      {showWelcome && <WelcomeModal role={role} onClose={dismissWelcome} />}
 
       {dialog?.type === "createCompany" && (
         <PromptDialog
