@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
@@ -23,6 +23,7 @@ import UserGuide from "./UserGuide";
 import EmployeeKpiModal from "./EmployeeKpiModal";
 import PremiumPlanPicker from "./PremiumPlanPicker";
 import WelcomeModal from "./WelcomeModal";
+import NotificationOptIn from "./NotificationOptIn";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { startPremiumCheckout } from "../payments";
@@ -696,6 +697,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         <SettingsPanel
           company={company}
           plan={plan}
+          session={session}
           premiumExpiresAt={premiumExpiresAt}
           checkoutLoading={checkoutLoading}
           planActionError={planActionError}
@@ -769,7 +771,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   );
 }
 
-function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onDeleteAccount, onClose, planActionError }) {
+function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onDeleteAccount, onClose, planActionError }) {
   const [copied, setCopied] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
@@ -812,6 +814,11 @@ function SettingsPanel({ company, plan, premiumExpiresAt, employees, onChangePla
                 className="w-full flex items-center gap-2.5 border border-slate-700 hover:border-amber-400/50 hover:bg-slate-800/50 rounded-md px-3 py-2.5 text-sm text-slate-200 transition-colors">
                 <BookOpen size={16} className="text-amber-400" /> Guide d'utilisation
               </button>
+
+              <div className="flex items-center justify-between border border-slate-700 rounded-md px-3 py-2.5">
+                <span className="text-sm text-slate-300 flex items-center gap-2"><Bell size={15} className="text-amber-400" /> Rappels & notifications</span>
+                <NotificationOptIn userId={session?.user?.id} context="dashboard" variant="dark" label="Activer" />
+              </div>
 
               <div>
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>

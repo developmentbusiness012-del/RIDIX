@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
+      injectRegister: "auto",
       registerType: "autoUpdate",
       includeAssets: ["apple-touch-icon.png"],
       manifest: {
@@ -24,9 +28,8 @@ export default defineConfig({
           { src: "pwa-maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-        navigateFallbackDenylist: [/^\/api/],
       },
     }),
   ],

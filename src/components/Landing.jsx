@@ -8,6 +8,7 @@ import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../cons
 import InstallAppSection from "./InstallAppSection";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import LegalDocsModal from "./LegalDocsModal";
+import NotificationOptIn from "./NotificationOptIn";
 
 const FEATURES = [
   {
@@ -151,6 +152,9 @@ export default function Landing({ onEnter }) {
             </button>
           </div>
           <p className="text-xs text-slate-600 mt-4 font-mono">Aucune carte bancaire requise · Accès immédiat, sans confirmation d'email.</p>
+          <div className="mt-4">
+            <NotificationOptIn context="app" label="Pas encore prêt ? Activez un rappel" />
+          </div>
         </div>
 
         {/* Aperçu visuel type "grand livre" */}
