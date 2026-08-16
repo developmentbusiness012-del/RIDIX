@@ -24,17 +24,30 @@ export default function AdminDashboard({ onBack }) {
     })();
   }, []);
 
-  const toggleUserPlan = async (userId, currentPlan) => {
-    const nextPlan = currentPlan === "premium" ? "freemium" : "premium";
+  const PLAN_DURATIONS = { premium_2m: 60, premium_2y: 730, premium_unlimited: null };
+
+  const setUserPlan = async (userId, choice) => {
+    const isFreemium = choice === "freemium";
+    const newPlan = isFreemium ? "freemium" : "premium";
+    const durationDays = isFreemium ? null : PLAN_DURATIONS[choice];
+
     setPlanUpdating(userId);
-    const { error } = await supabase.rpc("admin_set_user_plan", { target_user_id: userId, new_plan: nextPlan });
+    const { error } = await supabase.rpc("admin_set_user_plan", {
+      target_user_id: userId,
+      new_plan: newPlan,
+      duration_days: durationDays,
+    });
     if (!error) {
-      setStats((prev) => ({
-        ...prev,
-        premium: nextPlan === "premium" ? prev.premium + 1 : prev.premium - 1,
-        freemium: nextPlan === "freemium" ? prev.freemium + 1 : prev.freemium - 1,
-        users: prev.users.map((u) => (u.id === userId ? { ...u, plan: nextPlan } : u)),
-      }));
+      setStats((prev) => {
+        const wasPremium = prev.users.find((u) => u.id === userId)?.plan === "premium";
+        const delta = wasPremium === (newPlan === "premium") ? 0 : newPlan === "premium" ? 1 : -1;
+        return {
+          ...prev,
+          premium: prev.premium + delta,
+          freemium: prev.freemium - delta,
+          users: prev.users.map((u) => (u.id === userId ? { ...u, plan: newPlan } : u)),
+        };
+      });
     } else {
       setPlanErrorMsg(error.message);
     }
@@ -192,24 +205,23 @@ export default function AdminDashboard({ onBack }) {
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString("fr-FR") : "Jamais"}</td>
                     <td className="px-2 py-2 text-right">
                       {u.role === "owner" ? (
-                        <button
-                          onClick={() => toggleUserPlan(u.id, u.plan)}
-                          disabled={planUpdating === u.id}
-                          className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-md border ml-auto disabled:opacity-50 ${
-                            u.plan === "premium"
-                              ? "border-slate-700 text-slate-400 hover:border-rose-700 hover:text-rose-300"
-                              : "border-amber-700/50 text-amber-300 hover:bg-amber-900/30"
-                          }`}
-                        >
-                          {planUpdating === u.id ? (
-                            <Loader2 size={11} className="animate-spin" />
-                          ) : u.plan === "premium" ? (
-                            <Gift size={11} />
-                          ) : (
-                            <Crown size={11} />
-                          )}
-                          {u.plan === "premium" ? "Repasser Freemium" : "Passer Premium"}
-                        </button>
+                        <div className="relative inline-block">
+                          <select
+                            value=""
+                            onChange={(e) => e.target.value && setUserPlan(u.id, e.target.value)}
+                            disabled={planUpdating === u.id}
+                            className="text-[11px] pl-2.5 pr-6 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-slate-300 disabled:opacity-50 appearance-none cursor-pointer hover:border-amber-700/50"
+                          >
+                            <option value="" disabled>
+                              {planUpdating === u.id ? "…" : "Modifier l'offre"}
+                            </option>
+                            <option value="freemium" disabled={u.plan === "freemium"}>Freemium</option>
+                            <option value="premium_2m">Premium — 2 mois</option>
+                            <option value="premium_2y">Premium — 2 ans</option>
+                            <option value="premium_unlimited">Premium — illimité (admin)</option>
+                          </select>
+                          {planUpdating === u.id && <Loader2 size={11} className="animate-spin absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />}
+                        </div>
                       ) : (
                         <span className="text-[10px] text-slate-600">hérité du patron</span>
                       )}
