@@ -9,6 +9,7 @@ import InstallAppSection from "./InstallAppSection";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import LegalDocsModal from "./LegalDocsModal";
 import NotificationOptIn from "./NotificationOptIn";
+import { MarketScene, GrowthIllustration, TextilePattern } from "./LandingIllustrations";
 
 const FEATURES = [
   {
@@ -185,6 +186,32 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
+      {/* ---------- Ancré dans le commerce africain ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 border-t border-white/10">
+        <div className="grid md:grid-cols-2 gap-10 items-center">
+          <div className="order-2 md:order-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Pensé ici, pour ici</span>
+            <h2 className="font-serif font-semibold text-2xl sm:text-3xl text-slate-50 mt-3 mb-4">
+              Construit pour le commerce africain — pas adapté après coup.
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed mb-4">
+              Du marché de Douala aux comptoirs d'import-export, RIDIX parle la langue du commerce local dès le
+              départ : FCFA en devise de référence, profils import/export natifs, et une interface qui fonctionne
+              même avec une connexion capricieuse.
+            </p>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Pas une application étrangère traduite en français — un outil pensé depuis le premier jour pour la
+              réalité du commerçant africain.
+            </p>
+          </div>
+          <div className="order-1 md:order-2">
+            <MarketScene className="w-full h-auto max-w-md mx-auto" />
+          </div>
+        </div>
+      </section>
+
+      <TextilePattern className="w-full h-6 opacity-60" />
+
       {/* ---------- Fonctionnalités ---------- */}
       <section id="fonctionnalites" className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-white/10">
         <div className="text-center mb-12">
@@ -207,22 +234,6 @@ export default function Landing({ onEnter }) {
               <p className="text-xs text-slate-400 leading-relaxed">{f.desc}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ---------- Bandeau incitatif Premium ---------- */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-        <div className="border border-gold/25 bg-gradient-to-r from-gold/5 to-transparent rounded-lg p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between">
-          <div>
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gold-bright bg-gold/10 border border-gold/20 rounded-full px-2 py-0.5 mb-3">
-              🔥 Offre de lancement
-            </span>
-            <h3 className="font-serif text-lg text-slate-50 mb-1">Stock, crédits & équipe illimitée dès 5 000 FCFA</h3>
-            <p className="text-sm text-slate-400 max-w-md">Ne perdez plus une vente faute de stock, ni une créance client oubliée. Passez en Premium et pilotez tout votre commerce, pas seulement vos comptes.</p>
-          </div>
-          <button onClick={() => onEnter("signup")} className="shrink-0 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-5 py-2.5 text-sm transition-colors whitespace-nowrap">
-            Essayer Premium
-          </button>
         </div>
       </section>
 
@@ -313,7 +324,7 @@ export default function Landing({ onEnter }) {
         <div className="text-center mb-10">
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Tarifs</span>
           <h2 className="font-serif font-semibold text-3xl text-slate-50 mt-3 mb-3">Une offre pour chaque étape de votre croissance</h2>
-          <p className="text-slate-400 text-sm">Commencez gratuitement, passez à Premium quand votre équipe grandit.</p>
+          <p className="text-slate-400 text-sm">Commencez gratuitement, passez à Premium quand votre équipe grandit — ne perdez plus une vente faute de stock, ni une créance oubliée.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-5 mb-8">
           {PLANS.map((p) => (
@@ -370,6 +381,7 @@ export default function Landing({ onEnter }) {
 
       {/* ---------- CTA final ---------- */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <GrowthIllustration className="w-48 h-auto mx-auto mb-6 opacity-90" />
         <h2 className="font-serif font-semibold text-3xl text-slate-50 mb-3">Prêt à voir clair dans vos finances ?</h2>
         <p className="text-slate-400 text-sm mb-6">Créez votre compte en moins d'une minute, sans engagement.</p>
         <button onClick={() => onEnter("signup")} className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold rounded-md px-6 py-3 text-sm transition-colors">
