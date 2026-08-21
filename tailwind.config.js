@@ -12,6 +12,7 @@ export default {
         ink: "#0F1B2B",
         gold: { DEFAULT: "#D4A017", bright: "#E9B830" },
         forest: { DEFAULT: "#1E5F4A", bright: "#2C8C6B" },
+        cream: { DEFAULT: "#FFFCF6", deep: "#FBF2DF" },
       },
     },
   },
