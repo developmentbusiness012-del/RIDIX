@@ -30,10 +30,9 @@ export function LiveCompanyCounter({ className = "" }) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    supabase
-      .from("companies")
-      .select("*", { count: "exact", head: true })
-      .then(({ count }) => setTarget(count ?? 0));
+    supabase.rpc("get_public_company_count").then(({ data, error }) => {
+      setTarget(error ? 0 : data ?? 0);
+    });
   }, []);
 
   useEffect(() => {

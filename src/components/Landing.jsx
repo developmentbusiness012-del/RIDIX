@@ -9,7 +9,7 @@ import InstallAppSection from "./InstallAppSection";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import LegalDocsModal from "./LegalDocsModal";
 import NotificationOptIn from "./NotificationOptIn";
-import { MarketScene, GrowthIllustration } from "./LandingIllustrations";
+import { GrowthIllustration } from "./LandingIllustrations";
 import { Reveal, LiveCompanyCounter } from "./LandingMotion";
 import { useState } from "react";
 
@@ -195,27 +195,22 @@ export default function Landing({ onEnter }) {
       </Reveal>
 
       {/* ---------- Ancré dans le commerce africain ---------- */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
-        <div className="grid md:grid-cols-2 gap-10 items-center">
-          <Reveal className="order-2 md:order-1">
-            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">Pensé ici, pour ici</span>
-            <h2 className="font-serif font-semibold text-2xl sm:text-3xl text-ink mt-3 mb-4">
-              Construit pour le commerce africain — pas adapté après coup.
-            </h2>
-            <p className="text-ink/60 text-[15px] leading-relaxed mb-4">
-              Du marché de Douala aux comptoirs d'import-export, RIDIX parle la langue du commerce local dès le
-              départ : FCFA en devise de référence, profils import/export natifs, une interface qui fonctionne même
-              avec une connexion capricieuse.
-            </p>
-            <p className="text-ink/60 text-[15px] leading-relaxed">
-              Pas une application étrangère traduite en français — un outil pensé depuis le premier jour pour la
-              réalité du commerçant africain.
-            </p>
-          </Reveal>
-          <Reveal delay={0.15} className="order-1 md:order-2">
-            <MarketScene className="w-full h-auto max-w-md mx-auto drop-shadow-xl" />
-          </Reveal>
-        </div>
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-20 text-center">
+        <Reveal>
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">Pensé ici, pour ici</span>
+          <h2 className="font-serif font-semibold text-2xl sm:text-3xl text-ink mt-3 mb-4">
+            Construit pour le commerce africain — pas adapté après coup.
+          </h2>
+          <p className="text-ink/60 text-[15px] leading-relaxed mb-4">
+            Du marché de Douala aux comptoirs d'import-export, RIDIX parle la langue du commerce local dès le
+            départ : FCFA en devise de référence, profils import/export natifs, une interface qui fonctionne même
+            avec une connexion capricieuse.
+          </p>
+          <p className="text-ink/60 text-[15px] leading-relaxed">
+            Pas une application étrangère traduite en français — un outil pensé depuis le premier jour pour la
+            réalité du commerçant africain.
+          </p>
+        </Reveal>
       </section>
 
       {/* ---------- Fonctionnalités ---------- */}
