@@ -22,32 +22,26 @@ export function Reveal({ children, delay = 0, y = 28, className = "" }) {
 // Compteur animé qui monte de 0 jusqu'au nombre réel d'entreprises créées sur RIDIX
 // (lecture directe en base — jamais un chiffre inventé).
 export function LiveCompanyCounter({ className = "" }) {
-  const [target, setTarget] = useState(null);
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
   const motionVal = useMotionValue(0);
   const spring = useSpring(motionVal, { duration: 1.8, bounce: 0 });
   const [display, setDisplay] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     supabase.rpc("get_public_company_count").then(({ data, error }) => {
-      setTarget(error ? 0 : data ?? 0);
+      const value = error ? 0 : data ?? 0;
+      setLoaded(true);
+      motionVal.set(value);
     });
-  }, []);
-
-  useEffect(() => {
-    if (inView && target !== null) motionVal.set(target);
-  }, [inView, target, motionVal]);
+  }, [motionVal]);
 
   useEffect(() => {
     const unsub = spring.on("change", (v) => setDisplay(Math.round(v)));
     return unsub;
   }, [spring]);
 
-  if (target === null) return null;
-
   return (
-    <span ref={ref} className={className}>
+    <span className={className} style={{ visibility: loaded ? "visible" : "hidden" }}>
       {display.toLocaleString("fr-FR")}
     </span>
   );
