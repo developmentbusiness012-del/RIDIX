@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import { formatMontant, MOIS_FR, TYPES_OP } from "../constants";
 import { exportDossierFinancement } from "../exportUtils";
 import { PremiumTeaser } from "./StockPanel";
+import { computeCapacity, computeReadiness } from "../financingUtils";
 
 const ALERT_STYLES = {
   tresorerie_risque: { label: "⚠️ Trésorerie sous surveillance", tone: "border-rose-800/50 bg-rose-950/20 text-rose-200" },
@@ -18,29 +19,45 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
   const [assets, setAssets] = useState([]);
   const [liabilities, setLiabilities] = useState([]);
   const [recentAlerts, setRecentAlerts] = useState([]);
+  const [financingRequests, setFinancingRequests] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (plan !== "premium" || !companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: alerts }] = await Promise.all([
+      const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: alerts }, { data: finReqs }, { data: docs }] = await Promise.all([
         supabase.from("products").select("*").eq("company_id", companyId),
         supabase.from("credits").select("*").eq("company_id", companyId),
         supabase.from("assets").select("*").eq("company_id", companyId),
         supabase.from("liabilities").select("*").eq("company_id", companyId),
         supabase.from("alert_log").select("*").eq("company_id", companyId).order("sent_at", { ascending: false }).limit(10),
+        supabase.from("financing_requests").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
+        supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
       ]);
       setProducts(prods || []);
       setCredits(cred || []);
       setAssets(ast || []);
       setLiabilities(liab || []);
       setRecentAlerts(alerts || []);
+      setFinancingRequests(finReqs || []);
+      setDocuments(docs || []);
       setLoading(false);
     })();
   }, [companyId, plan]);
 
   const analysis = useMemo(() => computeAnalysis(transactions, products, credits, deviseBase), [transactions, products, credits, deviseBase]);
+  const dettesOuvertesTotal = useMemo(() => {
+    const dettesCommerciales = credits.filter((c) => c.type === "fournisseur" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
+    const passifsFinanciers = liabilities.filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
+    return dettesCommerciales + passifsFinanciers;
+  }, [credits, liabilities]);
+  const capacity = useMemo(() => computeCapacity(transactions, dettesOuvertesTotal), [transactions, dettesOuvertesTotal]);
+  const readiness = useMemo(
+    () => computeReadiness({ healthScore: analysis.score, transactions, products, assets, liabilities, credits, financingRequests, debtRatio: capacity.debtRatio ?? 0 }),
+    [analysis.score, transactions, products, assets, liabilities, credits, financingRequests, capacity.debtRatio]
+  );
 
   if (plan !== "premium") {
     return (
@@ -71,7 +88,7 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-xs text-slate-500 max-w-md">Ces indicateurs alimentent aussi votre dossier de financement, prêt à partager avec une banque ou un investisseur.</p>
         <button
-          onClick={() => exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities)}
+          onClick={() => exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities, financingRequests[0] || null, readiness, documents)}
           className="flex items-center gap-1.5 bg-slate-100 hover:bg-white text-slate-900 font-medium text-sm rounded-md px-3 py-2 shrink-0"
         >
           <FileText size={15} /> Dossier de financement (PDF)

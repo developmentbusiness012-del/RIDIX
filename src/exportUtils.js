@@ -74,7 +74,7 @@ export async function exportPdf(transactions, company, kpis) {
 // ---------- Pilier 3 : Dossier de financement (Premium) ----------
 // Document professionnel destiné à être partagé avec une banque ou un investisseur :
 // historique, indicateurs de fiabilité, score de santé, projection de trésorerie.
-export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = []) {
+export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = [], financingRequest = null, readiness = null, documents = []) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
@@ -89,7 +89,7 @@ export async function exportDossierFinancement(transactions, products, credits, 
   doc.rect(0, 0, pageWidth, 60, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(11);
-  doc.text("DOSSIER DE FINANCEMENT", 14, 20);
+  doc.text("RIDIX FINANCING PACK", 14, 20);
   doc.setFontSize(22);
   doc.text(company.name, 14, 34);
   doc.setFontSize(10);
@@ -111,8 +111,10 @@ export async function exportDossierFinancement(transactions, products, credits, 
     [`Ancienneté du compte`, anciennete !== null ? `${anciennete} mois de suivi` : "—"],
     [`Nombre d'écritures enregistrées`, `${transactions.length}`],
     [`Score de santé financière`, `${analysis.score} / 100`],
+    ...(readiness ? [[`Score de préparation au financement`, `${readiness.score} / 100`]] : []),
     [`Produits suivis en stock`, `${products.length}`],
     [`Dossiers de créances/dettes suivis`, `${credits.length}`],
+    ...(documents.length > 0 ? [[`Documents disponibles (Data Room)`, `${documents.length}`]] : []),
   ];
   autoTable(doc, {
     startY: y,
@@ -125,6 +127,88 @@ export async function exportDossierFinancement(transactions, products, credits, 
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
   doc.text(`Document généré automatiquement le ${today.toLocaleDateString("fr-FR")} — Ridix`, 14, 285);
+
+  // ---------- Page : Besoin de financement & préparation ----------
+  let curY;
+  if (financingRequest || readiness) {
+    doc.addPage();
+    sectionTitle(doc, "Besoin de financement & préparation");
+    curY = 30;
+
+    if (financingRequest) {
+      const NEED_LABELS = { fonds_roulement: "Fonds de roulement", stock: "Achat de stock", equipement: "Équipement", immobilier: "Immobilier", tresorerie: "Trésorerie ponctuelle", autre: "Autre" };
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Besoin exprimé", 14, curY);
+      autoTable(doc, {
+        startY: curY + 4,
+        body: [
+          ["Type de besoin", NEED_LABELS[financingRequest.type_besoin] || financingRequest.type_besoin],
+          ["Montant souhaité", formatMontant(financingRequest.montant_souhaite, financingRequest.devise)],
+          ["Description", financingRequest.description || "—"],
+          ["Exprimé le", new Date(financingRequest.created_at).toLocaleDateString("fr-FR")],
+        ],
+        theme: "plain",
+        styles: { fontSize: 10, cellPadding: 1.5 },
+        columnStyles: { 0: { textColor: [71, 85, 105], cellWidth: 50 }, 1: { fontStyle: "bold" } },
+      });
+      curY = doc.lastAutoTable.finalY + 12;
+    }
+
+    doc.setFontSize(8);
+    doc.setTextColor(180, 130, 30);
+    doc.text("Rappel : la capacité et le score affichés dans ce dossier sont indicatifs et ne constituent en aucun cas une décision de crédit.", 14, curY);
+    curY += 8;
+
+    if (readiness) {
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Score de préparation au financement : ${readiness.score} / 100`, 14, curY);
+      autoTable(doc, {
+        startY: curY + 4,
+        head: [["Critère", "Points"]],
+        body: readiness.items.map((i) => [i.label, `${i.points} / ${i.max}`]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+      curY = doc.lastAutoTable.finalY + 10;
+
+      if (readiness.problems.length > 0) {
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(20, 20, 20);
+        doc.text("Points à renforcer", 14, curY);
+        curY += 5;
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(71, 85, 105);
+        readiness.problems.forEach((p) => {
+          const lines = doc.splitTextToSize(`• ${p.recommendation}`, pageWidth - 28);
+          doc.text(lines, 14, curY);
+          curY += lines.length * 4.5 + 2;
+        });
+      }
+    }
+  }
+
+  // ---------- Page : Documents disponibles (Data Room) ----------
+  if (documents.length > 0) {
+    doc.addPage();
+    sectionTitle(doc, "Documents disponibles (Data Room)");
+    const CAT_LABELS = { legal: "Juridique", fiscal: "Fiscal", etats_financiers: "États financiers", releves_bancaires: "Relevés bancaires", factures: "Factures", contrats: "Contrats", garanties: "Garanties", autre: "Autre" };
+    autoTable(doc, {
+      startY: 30,
+      head: [["Document", "Catégorie", "Ajouté le"]],
+      body: documents.map((d) => [d.name, CAT_LABELS[d.category] || d.category, new Date(d.created_at).toLocaleDateString("fr-FR")]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+    });
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Ces documents sont conservés dans votre Data Room RIDIX et peuvent être transmis séparément à l'institution financière.", 14, doc.lastAutoTable.finalY + 10);
+  }
 
   // ---------- Page 2 : Bilan d'activité ----------
   doc.addPage();
@@ -157,7 +241,7 @@ export async function exportDossierFinancement(transactions, products, credits, 
   });
   const months = Object.keys(monthly).sort().slice(-12);
 
-  let curY = doc.lastAutoTable.finalY + 12;
+  curY = doc.lastAutoTable.finalY + 12;
   doc.setFont(undefined, "bold");
   doc.setFontSize(11);
   doc.setTextColor(20, 20, 20);
