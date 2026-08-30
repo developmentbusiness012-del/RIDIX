@@ -8,18 +8,24 @@ import { PremiumTeaser } from "./StockPanel";
 export default function IntelligencePanel({ companyId, plan, deviseBase, transactions, company, onUpgrade, checkoutLoading }) {
   const [products, setProducts] = useState([]);
   const [credits, setCredits] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [liabilities, setLiabilities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (plan !== "premium" || !companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const [{ data: prods }, { data: cred }] = await Promise.all([
+      const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }] = await Promise.all([
         supabase.from("products").select("*").eq("company_id", companyId),
         supabase.from("credits").select("*").eq("company_id", companyId),
+        supabase.from("assets").select("*").eq("company_id", companyId),
+        supabase.from("liabilities").select("*").eq("company_id", companyId),
       ]);
       setProducts(prods || []);
       setCredits(cred || []);
+      setAssets(ast || []);
+      setLiabilities(liab || []);
       setLoading(false);
     })();
   }, [companyId, plan]);
@@ -55,7 +61,7 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-xs text-slate-500 max-w-md">Ces indicateurs alimentent aussi votre dossier de financement, prêt à partager avec une banque ou un investisseur.</p>
         <button
-          onClick={() => exportDossierFinancement(transactions, products, credits, company, analysis)}
+          onClick={() => exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities)}
           className="flex items-center gap-1.5 bg-slate-100 hover:bg-white text-slate-900 font-medium text-sm rounded-md px-3 py-2 shrink-0"
         >
           <FileText size={15} /> Dossier de financement (PDF)

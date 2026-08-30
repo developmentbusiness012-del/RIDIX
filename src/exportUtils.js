@@ -74,7 +74,7 @@ export async function exportPdf(transactions, company, kpis) {
 // ---------- Pilier 3 : Dossier de financement (Premium) ----------
 // Document professionnel destiné à être partagé avec une banque ou un investisseur :
 // historique, indicateurs de fiabilité, score de santé, projection de trésorerie.
-export async function exportDossierFinancement(transactions, products, credits, company, analysis) {
+export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = []) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
@@ -191,14 +191,14 @@ export async function exportDossierFinancement(transactions, products, credits, 
   doc.addPage();
   sectionTitle(doc, "Stock, créances & dettes");
 
-  const valeurStock = products.reduce((s, p) => s + Number(p.quantity) * Number(p.unit_price), 0);
+  const valeurStock = products.reduce((s, p) => s + Number(p.quantity) * Number(p.cost_price || p.unit_price || 0), 0);
   const creancesOuvertes = credits.filter((c) => c.type === "client" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
   const dettesOuvertes = credits.filter((c) => c.type === "fournisseur" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
 
   autoTable(doc, {
     startY: 30,
     body: [
-      ["Valeur du stock actuel", formatMontant(valeurStock, devise)],
+      ["Valeur du stock actuel (au prix de revient)", formatMontant(valeurStock, devise)],
       ["Créances clients en cours", formatMontant(creancesOuvertes, devise)],
       ["Dettes fournisseurs en cours", formatMontant(dettesOuvertes, devise)],
       ["Actif net estimé (stock + créances - dettes)", formatMontant(valeurStock + creancesOuvertes - dettesOuvertes, devise)],
@@ -208,10 +208,98 @@ export async function exportDossierFinancement(transactions, products, credits, 
     columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
   });
 
-  if (analysis.topProfitables.length > 0) {
+  // Marge réelle par produit (basée sur le prix de revient renseigné)
+  const produitsAvecMarge = products.filter((p) => Number(p.cost_price) > 0 && Number(p.unit_price) > 0);
+  if (produitsAvecMarge.length > 0) {
     curY = doc.lastAutoTable.finalY + 12;
     doc.setFont(undefined, "bold");
     doc.setFontSize(11);
+    doc.setTextColor(20, 20, 20);
+    doc.text("Marge réelle par produit", 14, curY);
+    autoTable(doc, {
+      startY: curY + 4,
+      head: [["Produit", "Prix revient", "Prix vente", "Marge"]],
+      body: produitsAvecMarge.map((p) => {
+        const m = Number(p.unit_price) > 0 ? ((Number(p.unit_price) - Number(p.cost_price)) / Number(p.unit_price)) * 100 : 0;
+        return [p.name, formatMontant(p.cost_price, p.devise), formatMontant(p.unit_price, p.devise), `${m.toFixed(0)} %`];
+      }),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+    });
+  }
+
+  // Bilan simplifié (actifs / passifs), si des immobilisations ou prêts sont renseignés
+  if (assets.length > 0 || liabilities.length > 0) {
+    doc.addPage();
+    sectionTitle(doc, "Bilan simplifié");
+
+    const immobilisations = assets.reduce((s, a) => s + Number(a.valeur), 0);
+    const tresorerie = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);
+    const passifsFinanciers = liabilities.filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
+    const totalActifs = tresorerie + valeurStock + creancesOuvertes + immobilisations;
+    const totalPassifs = dettesOuvertes + passifsFinanciers;
+
+    autoTable(doc, {
+      startY: 30,
+      body: [
+        ["Trésorerie nette (cumul recettes - dépenses)", formatMontant(tresorerie, devise)],
+        ["Stock (prix de revient)", formatMontant(valeurStock, devise)],
+        ["Créances clients", formatMontant(creancesOuvertes, devise)],
+        ["Immobilisations (équipement, véhicules, immobilier)", formatMontant(immobilisations, devise)],
+        ["Total actifs", formatMontant(totalActifs, devise)],
+        ["Dettes fournisseurs", formatMontant(dettesOuvertes, devise)],
+        ["Prêts & passifs financiers", formatMontant(passifsFinanciers, devise)],
+        ["Total passifs", formatMontant(totalPassifs, devise)],
+        ["Patrimoine net (actifs - passifs)", formatMontant(totalActifs - totalPassifs, devise)],
+      ],
+      theme: "plain",
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
+      didParseCell: (data) => {
+        if (data.row.index === 4 || data.row.index === 7 || data.row.index === 8) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      },
+    });
+
+    if (assets.length > 0) {
+      curY = doc.lastAutoTable.finalY + 12;
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Détail des immobilisations", 14, curY);
+      autoTable(doc, {
+        startY: curY + 4,
+        head: [["Libellé", "Catégorie", "Valeur"]],
+        body: assets.map((a) => [a.name, a.category, formatMontant(a.valeur, a.devise)]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+    }
+
+    if (liabilities.length > 0) {
+      curY = doc.lastAutoTable.finalY + 12;
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Détail des prêts & passifs financiers", 14, curY);
+      autoTable(doc, {
+        startY: curY + 4,
+        head: [["Libellé", "Catégorie", "Montant", "Reste dû"]],
+        body: liabilities.map((l) => [l.name, l.category, formatMontant(l.montant, l.devise), formatMontant(Number(l.montant) - Number(l.montant_rembourse), l.devise)]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+    }
+  }
+
+  if (analysis.topProfitables.length > 0) {
+    curY = doc.lastAutoTable.finalY + 12;
+    if (curY > 250) { doc.addPage(); curY = 20; }
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 20, 20);
     doc.text("Activités les plus rentables", 14, curY);
     autoTable(doc, {
       startY: curY + 4,

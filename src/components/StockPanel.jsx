@@ -98,17 +98,21 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
                 <th className="px-4 py-2 font-medium">Produit</th>
                 <th className="px-2 py-2 font-medium text-right">Quantité</th>
                 <th className="px-2 py-2 font-medium text-right">Seuil alerte</th>
-                <th className="px-2 py-2 font-medium text-right">Prix unitaire</th>
+                <th className="px-2 py-2 font-medium text-right">Prix revient</th>
+                <th className="px-2 py-2 font-medium text-right">Prix vente</th>
+                <th className="px-2 py-2 font-medium text-right">Marge</th>
                 <th className="px-2 py-2 font-medium text-right">Valeur stock</th>
                 <th className="px-2 py-2 w-24"></th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-slate-500 text-xs py-8">Aucun produit enregistré — ajoutez-en un pour commencer le suivi de stock.</td></tr>
+                <tr><td colSpan={8} className="text-center text-slate-500 text-xs py-8">Aucun produit enregistré — ajoutez-en un pour commencer le suivi de stock.</td></tr>
               )}
               {products.map((p) => {
                 const low = Number(p.quantity) <= Number(p.alert_threshold);
+                const margeUnitaire = Number(p.unit_price) - Number(p.cost_price || 0);
+                const margePct = Number(p.unit_price) > 0 ? (margeUnitaire / Number(p.unit_price)) * 100 : null;
                 return (
                   <tr key={p.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
                     <td className="px-4 py-2 text-slate-200">
@@ -117,7 +121,11 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
                     </td>
                     <td className={`px-2 py-2 text-right font-mono ${low ? "text-rose-400" : "text-slate-300"}`}>{p.quantity} {p.unit}</td>
                     <td className="px-2 py-2 text-right font-mono text-slate-500">{p.alert_threshold} {p.unit}</td>
+                    <td className="px-2 py-2 text-right font-mono text-slate-500">{formatMontant(p.cost_price || 0, p.devise)}</td>
                     <td className="px-2 py-2 text-right font-mono text-slate-400">{formatMontant(p.unit_price, p.devise)}</td>
+                    <td className={`px-2 py-2 text-right font-mono ${margePct === null ? "text-slate-600" : margePct >= 20 ? "text-emerald-400" : margePct >= 0 ? "text-amber-300" : "text-rose-400"}`}>
+                      {margePct === null ? "—" : `${margePct.toFixed(0)} %`}
+                    </td>
                     <td className="px-2 py-2 text-right font-mono text-slate-400">{formatMontant(p.quantity * p.unit_price, p.devise)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1">
@@ -175,6 +183,7 @@ function ProductForm({ deviseBase, onClose, onSubmit }) {
   const [unit, setUnit] = useState("unité");
   const [quantity, setQuantity] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("5");
+  const [costPrice, setCostPrice] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -187,6 +196,7 @@ function ProductForm({ deviseBase, onClose, onSubmit }) {
       unit,
       quantity: Number(quantity) || 0,
       alert_threshold: Number(alertThreshold) || 0,
+      cost_price: Number(costPrice) || 0,
       unit_price: Number(unitPrice) || 0,
       devise: deviseBase,
     });
@@ -226,10 +236,16 @@ function ProductForm({ deviseBase, onClose, onSubmit }) {
                 className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Prix unitaire ({deviseBase})</label>
+              <label className="text-xs text-slate-400 block mb-1">Prix de vente ({deviseBase})</label>
               <input type="number" min="0" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
             </div>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Prix de revient ({deviseBase}) — coût d'achat ou de production</label>
+            <input type="number" min="0" value={costPrice} onChange={(e) => setCostPrice(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
+            <p className="text-[11px] text-slate-500 mt-1">Sert à calculer votre vraie marge — laissez à 0 si vous ne le connaissez pas encore.</p>
           </div>
         </div>
         <button type="submit" disabled={saving} className="w-full mt-5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md py-2.5 flex items-center justify-center gap-2 disabled:opacity-60">
