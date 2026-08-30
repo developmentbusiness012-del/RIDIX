@@ -166,7 +166,7 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
   );
 }
 
-function ScoreGauge({ score }) {
+export function ScoreGauge({ score }) {
   const color = score >= 70 ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
   const circumference = 2 * Math.PI * 40;
   const offset = circumference - (score / 100) * circumference;

@@ -700,7 +700,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {activeTab === "financement" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
-            <FinancingPanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+            <FinancingPanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab} />
           </Suspense>
         )}
 
