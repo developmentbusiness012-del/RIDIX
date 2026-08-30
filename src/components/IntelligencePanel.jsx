@@ -1,31 +1,41 @@
 import { useState, useEffect, useMemo } from "react";
-import { Sparkles, AlertTriangle, Loader2, Trophy, Activity, FileText } from "lucide-react";
+import { Sparkles, AlertTriangle, Loader2, Trophy, Activity, FileText, BellRing } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant, MOIS_FR, TYPES_OP } from "../constants";
 import { exportDossierFinancement } from "../exportUtils";
 import { PremiumTeaser } from "./StockPanel";
+
+const ALERT_STYLES = {
+  tresorerie_risque: { label: "⚠️ Trésorerie sous surveillance", tone: "border-rose-800/50 bg-rose-950/20 text-rose-200" },
+  creances_grimpent: { label: "📈 Créances clients en hausse", tone: "border-amber-800/50 bg-amber-950/20 text-amber-200" },
+  marge_ameliore: { label: "✅ Marge en amélioration", tone: "border-emerald-800/50 bg-emerald-950/20 text-emerald-200" },
+  endettement_accelere: { label: "⚠️ Endettement fournisseurs en accélération", tone: "border-rose-800/50 bg-rose-950/20 text-rose-200" },
+};
 
 export default function IntelligencePanel({ companyId, plan, deviseBase, transactions, company, onUpgrade, checkoutLoading }) {
   const [products, setProducts] = useState([]);
   const [credits, setCredits] = useState([]);
   const [assets, setAssets] = useState([]);
   const [liabilities, setLiabilities] = useState([]);
+  const [recentAlerts, setRecentAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (plan !== "premium" || !companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }] = await Promise.all([
+      const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: alerts }] = await Promise.all([
         supabase.from("products").select("*").eq("company_id", companyId),
         supabase.from("credits").select("*").eq("company_id", companyId),
         supabase.from("assets").select("*").eq("company_id", companyId),
         supabase.from("liabilities").select("*").eq("company_id", companyId),
+        supabase.from("alert_log").select("*").eq("company_id", companyId).order("sent_at", { ascending: false }).limit(10),
       ]);
       setProducts(prods || []);
       setCredits(cred || []);
       setAssets(ast || []);
       setLiabilities(liab || []);
+      setRecentAlerts(alerts || []);
       setLoading(false);
     })();
   }, [companyId, plan]);
@@ -82,6 +92,23 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="bg-slate-900/60 border border-slate-800 rounded-md p-5">
+        <h3 className="font-serif text-base text-slate-50 mb-3 flex items-center gap-2"><BellRing size={16} className="text-amber-400" /> RIDIX Alert</h3>
+        <p className="text-xs text-slate-500 mb-3">Surveillance automatique et hebdomadaire de votre trésorerie, vos créances, votre marge et votre endettement — avec notification directe.</p>
+        {recentAlerts.length === 0 ? (
+          <p className="text-xs text-slate-500">Aucune alerte envoyée pour l'instant — vos indicateurs sont dans les clous.</p>
+        ) : (
+          <div className="space-y-2">
+            {recentAlerts.map((a) => (
+              <div key={a.id} className={`text-xs rounded-md px-3 py-2 border flex items-center justify-between gap-2 ${ALERT_STYLES[a.alert_type]?.tone || "border-slate-700 bg-slate-800/40 text-slate-300"}`}>
+                <span>{ALERT_STYLES[a.alert_type]?.label || a.alert_type}</span>
+                <span className="text-slate-500 shrink-0">{new Date(a.sent_at).toLocaleDateString("fr-FR")}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-900/60 border border-slate-800 rounded-md p-5">
