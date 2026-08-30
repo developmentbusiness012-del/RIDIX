@@ -113,7 +113,7 @@ export default function App() {
       if (e2) throw e2;
       if (membership) {
         const { data: ownerPlan } = await supabase.from("account_settings").select("plan").eq("user_id", membership.companies.owner_id).maybeSingle();
-        const p = { role: "employe", plan: ownerPlan?.plan || "premium", onboarded: true };
+        const p = { role: membership.role || "employe", plan: ownerPlan?.plan || "premium", onboarded: true };
         cacheSet(`profile_${userId}`, p);
         setProfile(p);
         setResolving(false);

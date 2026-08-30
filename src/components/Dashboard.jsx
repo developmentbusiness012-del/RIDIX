@@ -10,7 +10,7 @@ import {
   Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS } from "../constants";
+import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions } from "../constants";
 import TransactionForm from "./TransactionForm";
 import ImportCsv from "./ImportCsv";
 import MessagesPanel from "./MessagesPanel";
@@ -34,6 +34,7 @@ const monthKey = (d) => d.slice(0, 7);
 
 export default function Dashboard({ session, role, plan: initialPlan, premiumExpiresAt, isAdmin, onOpenAdmin }) {
   const isOwner = role === "owner";
+  const perms = getPermissions(role, isOwner);
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -248,6 +249,11 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     setDialog(null);
   };
 
+  const updateEmployeeRole = async (id, newRole) => {
+    const { error } = await supabase.from("company_members").update({ role: newRole }).eq("id", id);
+    if (!error) setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, role: newRole } : e)));
+  };
+
   const addTransaction = async (tx) => {
     if (!navigator.onLine) {
       const entry = addPending(activeId, tx);
@@ -432,8 +438,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             { id: "bord", label: "Tableau de bord", icon: null, locked: false },
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
-            ...(isOwner ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: plan !== "premium" }] : []),
-            ...(isOwner ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
+            ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: plan !== "premium" }] : []),
+            ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
           ].map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -674,23 +680,23 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {activeTab === "stock" && (
           <Suspense fallback={<PanelLoading />}>
-            <StockPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+            <StockPanel companyId={activeId} plan={plan} isOwner={isOwner} canManage={isOwner || perms.canManageStock} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
           </Suspense>
         )}
 
         {activeTab === "credits" && (
           <Suspense fallback={<PanelLoading />}>
-            <CreditsPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+            <CreditsPanel companyId={activeId} plan={plan} isOwner={isOwner} canManage={isOwner || perms.canManageCredits} deviseBase={company.devise_base} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
           </Suspense>
         )}
 
-        {activeTab === "bilan" && isOwner && (
+        {activeTab === "bilan" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
             <BilanPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
           </Suspense>
         )}
 
-        {activeTab === "intelligence" && isOwner && (
+        {activeTab === "intelligence" && (isOwner || perms.canViewIntelligence) && (
           <Suspense fallback={<PanelLoading />}>
             <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
           </Suspense>
@@ -712,6 +718,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           employees={employees}
           onChangePlan={changePlan}
           onRemoveEmployee={removeEmployee}
+          onUpdateEmployeeRole={updateEmployeeRole}
           onUpdateCompany={updateCompany}
           onDeleteAccount={deleteAccount}
           onClose={() => setShowSettings(false)}
@@ -779,7 +786,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   );
 }
 
-function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateCompany, onDeleteAccount, onClose, planActionError }) {
+function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, onChangePlan, onRemoveEmployee, onUpdateEmployeeRole, onUpdateCompany, onDeleteAccount, onClose, planActionError }) {
   const [copied, setCopied] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
@@ -936,11 +943,18 @@ function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, on
                 ) : (
                   <div className="space-y-1.5">
                     {employees.map((e) => (
-                      <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm">
+                      <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm gap-2">
                         <button onClick={() => setViewingEmployee(e)} className="text-slate-300 hover:text-amber-300 text-left truncate flex-1">
                           {e.name || e.email || "Employé"}
                         </button>
-                        <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400 shrink-0 ml-2">
+                        <select
+                          value={e.role}
+                          onChange={(ev) => onUpdateEmployeeRole(e.id, ev.target.value)}
+                          className="bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-300 shrink-0"
+                        >
+                          {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                        </select>
+                        <button onClick={() => onRemoveEmployee(e.id)} className="text-slate-500 hover:text-rose-400 shrink-0">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -948,6 +962,14 @@ function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, on
                   </div>
                 )}
               </div>
+
+              {employees.length > 0 && (
+                <div className="pt-1 space-y-1">
+                  {ROLES.map((r) => (
+                    <p key={r.id} className="text-[11px] text-slate-500"><span className="text-slate-400 font-medium">{r.label} :</span> {r.description}</p>
+                  ))}
+                </div>
+              )}
 
               <div className="pt-2 border-t border-slate-800">
                 <p className="text-[11px] text-slate-500 uppercase tracking-wide mb-2">Restrictions employé</p>

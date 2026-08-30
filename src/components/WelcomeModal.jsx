@@ -25,7 +25,7 @@ export default function WelcomeModal({ role, onClose }) {
             <Perk icon={FileText} text="Un dossier prêt à montrer à votre banque, en un clic" />
           </div>
 
-          {role !== "employe" && (
+          {role === "owner" && (
             <p className="text-xs text-slate-400 leading-relaxed mb-5">
               Ces fonctionnalités font partie de l'offre <strong className="text-amber-300">Premium</strong> — vous
               pouvez commencer gratuitement dès maintenant avec le registre de base, et passer en Premium quand vous

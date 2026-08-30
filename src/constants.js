@@ -89,7 +89,7 @@ export const PLANS = [
   },
 ];
 
-// Ce que les comptes employés NE peuvent PAS faire
+// Ce que les comptes employés NE peuvent PAS faire (restrictions communes à tous les rôles)
 export const EMPLOYEE_RESTRICTIONS = [
   "Créer, renommer ou supprimer une entreprise",
   "Modifier les paramètres de l'entreprise (nom, devise, profil, code entreprise)",
@@ -99,15 +99,45 @@ export const EMPLOYEE_RESTRICTIONS = [
   "Accéder à une autre entreprise que celle assignée par le code",
 ];
 
-// Ce que les comptes employés PEUVENT faire
+// Ce que les comptes employés PEUVENT faire (droits de base, communs à tous)
 export const EMPLOYEE_ALLOWED = [
   "Ajouter des écritures (recettes et dépenses)",
   "Importer des écritures en masse via CSV",
-  "Gérer le stock (ajouter des produits, ajuster les quantités)",
-  "Enregistrer des crédits clients et dettes fournisseurs",
   "Consulter le tableau de bord, les graphiques et les rapports",
   "Exporter les écritures en Excel ou PDF",
 ];
+
+// Rôles différenciés (Étape 2 de la feuille de route) — chaque droit est aussi appliqué
+// côté base de données (RLS), pas seulement dans l'interface.
+export const ROLES = [
+  { id: "employe", label: "Non catégorisé", description: "Accès minimal par défaut. Peut saisir des transactions mais pas gérer le stock, les crédits ou le bilan tant qu'un rôle ne lui est pas attribué." },
+  { id: "comptable", label: "Comptable", description: "Accès complet aux données financières : stock, crédits/dettes, bilan, intelligence financière." },
+  { id: "caissier", label: "Caissier", description: "Gère le stock (ajout, ajustement des quantités). Pas d'accès aux crédits ni au bilan." },
+  { id: "commercial", label: "Commercial", description: "Gère les crédits clients et dettes fournisseurs. Consultation du stock seulement (pas de modification)." },
+  { id: "gestionnaire", label: "Gestionnaire", description: "Accès large : stock, crédits/dettes, bilan et intelligence financière." },
+];
+
+export function roleLabel(role) {
+  return ROLES.find((r) => r.id === role)?.label || role;
+}
+
+// Rôles autorisés à écrire (ajouter/modifier) dans chaque module — reflète les policies RLS Supabase.
+export const STOCK_WRITE_ROLES = ["comptable", "gestionnaire", "caissier"];
+export const CREDITS_WRITE_ROLES = ["comptable", "gestionnaire", "commercial"];
+export const BILAN_ROLES = ["comptable", "gestionnaire"]; // lecture ET écriture
+
+// Calcule les permissions effectives d'un utilisateur pour l'entreprise active.
+export function getPermissions(role, isOwner) {
+  if (isOwner) {
+    return { canManageStock: true, canManageCredits: true, canViewBilan: true, canViewIntelligence: true };
+  }
+  return {
+    canManageStock: STOCK_WRITE_ROLES.includes(role),
+    canManageCredits: CREDITS_WRITE_ROLES.includes(role),
+    canViewBilan: BILAN_ROLES.includes(role),
+    canViewIntelligence: BILAN_ROLES.includes(role),
+  };
+}
 
 export function formatMontant(v, devise) {
   try {

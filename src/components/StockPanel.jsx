@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
 import { ConfirmDialog } from "./Dialogs";
 
-export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpgrade, checkoutLoading }) {
+export default function StockPanel({ companyId, plan, isOwner, canManage = true, deviseBase, onUpgrade, checkoutLoading }) {
   const [products, setProducts] = useState([]);
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,10 +76,19 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-serif text-lg text-slate-50 flex items-center gap-2"><Boxes size={18} className="text-amber-400" /> Stock ({products.length})</h2>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2">
-          <Plus size={15} /> Produit
-        </button>
+        {canManage && (
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2">
+            <Plus size={15} /> Produit
+          </button>
+        )}
       </div>
+
+      {!canManage && (
+        <div className="mb-5 border border-slate-800 bg-slate-900/60 rounded-md px-4 py-2.5 flex items-center gap-2">
+          <Lock size={13} className="text-slate-500 shrink-0" />
+          <p className="text-xs text-slate-500">Votre rôle vous permet de consulter le stock, pas de le modifier.</p>
+        </div>
+      )}
 
       {lowStock.length > 0 && (
         <div className="mb-5 border border-rose-800/50 bg-rose-950/30 rounded-md px-4 py-3 flex items-start gap-2">
@@ -129,8 +138,8 @@ export default function StockPanel({ companyId, plan, isOwner, deviseBase, onUpg
                     <td className="px-2 py-2 text-right font-mono text-slate-400">{formatMontant(p.quantity * p.unit_price, p.devise)}</td>
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => adjustQuantity(p, -1)} className="text-slate-500 hover:text-rose-400 p-1"><Minus size={13} /></button>
-                        <button onClick={() => adjustQuantity(p, 1)} className="text-slate-500 hover:text-emerald-400 p-1"><Plus size={13} /></button>
+                        {canManage && <button onClick={() => adjustQuantity(p, -1)} className="text-slate-500 hover:text-rose-400 p-1"><Minus size={13} /></button>}
+                        {canManage && <button onClick={() => adjustQuantity(p, 1)} className="text-slate-500 hover:text-emerald-400 p-1"><Plus size={13} /></button>}
                         {isOwner && <button onClick={() => setConfirmDeleteId(p.id)} className="text-slate-600 hover:text-rose-400 p-1"><Trash2 size={13} /></button>}
                       </div>
                     </td>

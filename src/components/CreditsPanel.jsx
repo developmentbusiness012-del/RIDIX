@@ -5,7 +5,7 @@ import { formatMontant } from "../constants";
 import { PremiumTeaser } from "./StockPanel";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
 
-export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onUpgrade, checkoutLoading }) {
+export default function CreditsPanel({ companyId, plan, isOwner, canManage = true, deviseBase, onUpgrade, checkoutLoading }) {
   const [credits, setCredits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -73,10 +73,18 @@ export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onU
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h2 className="font-serif text-lg text-slate-50 flex items-center gap-2"><HandCoins size={18} className="text-amber-400" /> Crédits & dettes</h2>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2">
-          <Plus size={15} /> Nouvelle fiche
-        </button>
+        {canManage && (
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2">
+            <Plus size={15} /> Nouvelle fiche
+          </button>
+        )}
       </div>
+
+      {!canManage && (
+        <div className="mb-4 border border-slate-800 bg-slate-900/60 rounded-md px-4 py-2.5 flex items-center gap-2">
+          <p className="text-xs text-slate-500">Votre rôle vous permet de consulter les crédits/dettes, pas de les modifier.</p>
+        </div>
+      )}
 
       <div className="flex gap-2 mb-4">
         <button onClick={() => setTab("client")}
@@ -128,7 +136,7 @@ export default function CreditsPanel({ companyId, plan, isOwner, deviseBase, onU
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1">
-                        {c.statut === "ouvert" && (
+                        {c.statut === "ouvert" && canManage && (
                           <button onClick={() => setPaymentTarget(c)}
                             className="text-[10px] text-amber-300 hover:text-amber-200 border border-amber-700/50 rounded px-1.5 py-0.5">
                             + paiement
