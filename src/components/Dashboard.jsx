@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, Target,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions } from "../constants";
@@ -18,6 +18,7 @@ const StockPanel = lazy(() => import("./StockPanel"));
 const CreditsPanel = lazy(() => import("./CreditsPanel"));
 const IntelligencePanel = lazy(() => import("./IntelligencePanel"));
 const BilanPanel = lazy(() => import("./BilanPanel"));
+const FinancingPanel = lazy(() => import("./FinancingPanel"));
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import UserGuide from "./UserGuide";
@@ -439,6 +440,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
             ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: plan !== "premium" }] : []),
+            ...(isOwner || perms.canViewBilan ? [{ id: "financement", label: "Financement", icon: Target, locked: plan !== "premium" }] : []),
             ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
           ].map((tab) => (
@@ -693,6 +695,12 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         {activeTab === "bilan" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
             <BilanPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+          </Suspense>
+        )}
+
+        {activeTab === "financement" && (isOwner || perms.canViewBilan) && (
+          <Suspense fallback={<PanelLoading />}>
+            <FinancingPanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
           </Suspense>
         )}
 
