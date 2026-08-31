@@ -29,6 +29,8 @@ import WelcomeModal from "./WelcomeModal";
 import NotificationOptIn from "./NotificationOptIn";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
+import { computeAnalysis } from "../analysisUtils";
+import { computeCapacity, computeReadiness } from "../financingUtils";
 import { startPremiumCheckout } from "../payments";
 import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet } from "../offlineQueue";
 
@@ -164,6 +166,50 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     cacheSet(`tx_${activeId}`, data || []);
     setTransactions([...getPending(activeId), ...(data || [])]);
   }, [activeId]);
+
+  // Données financières partagées entre les onglets Intelligence et Financement (Bilan/Data Room
+  // gardent leur propre état local car ils ne sont pas eux-mêmes calculés à partir de ces données).
+  // Chargées une seule fois et recalculées ensemble pour garantir que les deux onglets affichent
+  // toujours exactement les mêmes chiffres (RIDIX Score, capacité indicative, score de préparation).
+  const [finData, setFinData] = useState({ products: [], credits: [], assets: [], liabilities: [], financingRequests: [], documents: [] });
+  const [finDataLoading, setFinDataLoading] = useState(true);
+
+  const refreshFinData = useCallback(async () => {
+    if (!activeId || plan !== "premium") { setFinDataLoading(false); return; }
+    setFinDataLoading(true);
+    const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: finReqs }, { data: docs }] = await Promise.all([
+      supabase.from("products").select("*").eq("company_id", activeId),
+      supabase.from("credits").select("*").eq("company_id", activeId),
+      supabase.from("assets").select("*").eq("company_id", activeId),
+      supabase.from("liabilities").select("*").eq("company_id", activeId),
+      supabase.from("financing_requests").select("*").eq("company_id", activeId).order("created_at", { ascending: false }),
+      supabase.from("documents").select("*").eq("company_id", activeId).order("created_at", { ascending: false }),
+    ]);
+    setFinData({ products: prods || [], credits: cred || [], assets: ast || [], liabilities: liab || [], financingRequests: finReqs || [], documents: docs || [] });
+    setFinDataLoading(false);
+  }, [activeId, plan]);
+
+  useEffect(() => {
+    if (activeTab === "intelligence" || activeTab === "financement") refreshFinData();
+  }, [activeTab, activeId, plan, refreshFinData]);
+
+  const analysis = useMemo(
+    () => computeAnalysis(transactions, finData.products, finData.credits, company?.devise_base),
+    [transactions, finData.products, finData.credits, company?.devise_base]
+  );
+  const dettesOuvertesTotal = useMemo(() => {
+    const dettesCommerciales = finData.credits.filter((c) => c.type === "fournisseur" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
+    const passifsFinanciers = finData.liabilities.filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
+    return dettesCommerciales + passifsFinanciers;
+  }, [finData.credits, finData.liabilities]);
+  const capacity = useMemo(() => computeCapacity(transactions, dettesOuvertesTotal), [transactions, dettesOuvertesTotal]);
+  const readiness = useMemo(
+    () => computeReadiness({ healthScore: analysis.score, transactions, products: finData.products, assets: finData.assets, liabilities: finData.liabilities, credits: finData.credits, financingRequests: finData.financingRequests, debtRatio: capacity.debtRatio ?? 0 }),
+    [analysis.score, transactions, finData.products, finData.assets, finData.liabilities, finData.credits, finData.financingRequests, capacity.debtRatio]
+  );
+  const addFinancingRequest = useCallback((req) => {
+    setFinData((prev) => ({ ...prev, financingRequests: [req, ...prev.financingRequests] }));
+  }, []);
 
   const updateCompany = async (patch) => {
     setSaveState("saving");
@@ -702,7 +748,14 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {activeTab === "financement" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
-            <FinancingPanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab} />
+            <FinancingPanel
+              companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
+              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities}
+              requests={finData.financingRequests} documents={finData.documents}
+              analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
+              onAddFinancingRequest={addFinancingRequest}
+              onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab}
+            />
           </Suspense>
         )}
 
@@ -714,7 +767,13 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {activeTab === "intelligence" && (isOwner || perms.canViewIntelligence) && (
           <Suspense fallback={<PanelLoading />}>
-            <IntelligencePanel companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+            <IntelligencePanel
+              companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
+              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities}
+              financingRequests={finData.financingRequests} documents={finData.documents}
+              analysis={analysis} readiness={readiness} dataLoading={finDataLoading}
+              onUpgrade={changePlan} checkoutLoading={checkoutLoading}
+            />
           </Suspense>
         )}
 

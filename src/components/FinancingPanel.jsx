@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { Target, Plus, X, Loader2, ShieldAlert, TrendingUp, Boxes, Wrench, Building, Wallet, HelpCircle, ListChecks, ArrowRight, FileText } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
 import { exportDossierFinancement } from "../exportUtils";
 import { PremiumTeaser } from "./StockPanel";
-import { computeAnalysis, ScoreGauge } from "./IntelligencePanel";
-import { computeCapacity, computeReadiness, readinessLabel } from "../financingUtils";
+import { ScoreGauge } from "./IntelligencePanel";
+import { readinessLabel } from "../financingUtils";
 
 const NEED_TYPES = [
   { id: "fonds_roulement", label: "Fonds de roulement", icon: Wallet },
@@ -16,52 +16,11 @@ const NEED_TYPES = [
   { id: "autre", label: "Autre", icon: HelpCircle },
 ];
 
-export default function FinancingPanel({ companyId, plan, deviseBase, transactions, company, onUpgrade, checkoutLoading, onNavigate }) {
-  const [requests, setRequests] = useState([]);
-  const [credits, setCredits] = useState([]);
-  const [liabilities, setLiabilities] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [assets, setAssets] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+// products/credits/assets/liabilities/requests/documents/analysis/readiness/capacity viennent de
+// Dashboard.jsx (calculés une seule fois, partagés avec IntelligencePanel — voir la note là-bas).
+export default function FinancingPanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], requests = [], documents = [], analysis, readiness, capacity, dataLoading, onAddFinancingRequest, onUpgrade, checkoutLoading, onNavigate }) {
   const [showForm, setShowForm] = useState(false);
   const [generating, setGenerating] = useState(false);
-
-  useEffect(() => {
-    if (plan !== "premium" || !companyId) { setLoading(false); return; }
-    (async () => {
-      setLoading(true);
-      const [{ data: reqs }, { data: cred }, { data: liab }, { data: prods }, { data: ast }, { data: docs }] = await Promise.all([
-        supabase.from("financing_requests").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
-        supabase.from("credits").select("*").eq("company_id", companyId),
-        supabase.from("liabilities").select("*").eq("company_id", companyId),
-        supabase.from("products").select("*").eq("company_id", companyId),
-        supabase.from("assets").select("*").eq("company_id", companyId),
-        supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
-      ]);
-      setRequests(reqs || []);
-      setCredits(cred || []);
-      setLiabilities(liab || []);
-      setProducts(prods || []);
-      setAssets(ast || []);
-      setDocuments(docs || []);
-      setLoading(false);
-    })();
-  }, [companyId, plan]);
-
-  const dettesOuvertesTotal = useMemo(() => {
-    const dettesCommerciales = (credits || []).filter((c) => c.type === "fournisseur" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
-    const passifsFinanciers = (liabilities || []).filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
-    return dettesCommerciales + passifsFinanciers;
-  }, [credits, liabilities]);
-
-  const capacity = useMemo(() => computeCapacity(transactions, dettesOuvertesTotal), [transactions, dettesOuvertesTotal]);
-
-  const analysis = useMemo(() => computeAnalysis(transactions, products, credits, deviseBase), [transactions, products, credits, deviseBase]);
-  const readiness = useMemo(
-    () => computeReadiness({ healthScore: analysis.score, transactions, products, assets, liabilities, credits, financingRequests: requests, debtRatio: capacity.debtRatio ?? 0 }),
-    [analysis.score, transactions, products, assets, liabilities, credits, requests, capacity.debtRatio]
-  );
 
   const generateDossier = async () => {
     setGenerating(true);
@@ -75,10 +34,10 @@ export default function FinancingPanel({ companyId, plan, deviseBase, transactio
   const addRequest = async (payload) => {
     const { data, error } = await supabase.from("financing_requests").insert({
       company_id: companyId,
-      capacite_indicative_calculee: capacity.eligible ? capacity.capacite : null,
+      capacite_indicative_calculee: capacity?.eligible ? capacity.capacite : null,
       ...payload,
     }).select().single();
-    if (!error && data) setRequests((prev) => [data, ...prev]);
+    if (!error && data) onAddFinancingRequest?.(data);
   };
 
   if (plan !== "premium") {
@@ -98,7 +57,7 @@ export default function FinancingPanel({ companyId, plan, deviseBase, transactio
     );
   }
 
-  if (loading) {
+  if (dataLoading || !readiness || !capacity) {
     return <div className="flex items-center gap-2 text-slate-500 text-sm py-10 justify-center"><Loader2 className="animate-spin" size={16} /> Chargement…</div>;
   }
 
