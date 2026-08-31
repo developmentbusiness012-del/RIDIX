@@ -107,7 +107,7 @@ export function computeReadiness({ healthScore, transactions, products, assets, 
       ? "Votre besoin est exprimé mais sans description — un prêteur voudra comprendre le projet en détail."
       : null,
     recommendation: "Décrivez précisément votre projet (quoi, pourquoi, quand) dans une nouvelle demande.",
-    tab: "financement",
+    tab: "intelligence",
     tabLabel: "Exprimer un besoin",
   });
 

@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, Target, FolderLock,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions } from "../constants";
@@ -190,7 +190,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   }, [activeId, plan]);
 
   useEffect(() => {
-    if (activeTab === "intelligence" || activeTab === "financement") refreshFinData();
+    if (activeTab === "intelligence") refreshFinData();
   }, [activeTab, activeId, plan, refreshFinData]);
 
   const analysis = useMemo(
@@ -487,7 +487,6 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
             ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: plan !== "premium" }] : []),
-            ...(isOwner || perms.canViewBilan ? [{ id: "financement", label: "Financement", icon: Target, locked: plan !== "premium" }] : []),
             ...(isOwner || perms.canViewBilan ? [{ id: "dataroom", label: "Documents", icon: FolderLock, locked: plan !== "premium" }] : []),
             ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
@@ -746,19 +745,6 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           </Suspense>
         )}
 
-        {activeTab === "financement" && (isOwner || perms.canViewBilan) && (
-          <Suspense fallback={<PanelLoading />}>
-            <FinancingPanel
-              companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
-              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities}
-              requests={finData.financingRequests} documents={finData.documents}
-              analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
-              onAddFinancingRequest={addFinancingRequest}
-              onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab}
-            />
-          </Suspense>
-        )}
-
         {activeTab === "dataroom" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
             <DataRoomPanel companyId={activeId} plan={plan} isOwner={isOwner} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
@@ -774,6 +760,18 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
               analysis={analysis} readiness={readiness} dataLoading={finDataLoading}
               onUpgrade={changePlan} checkoutLoading={checkoutLoading}
             />
+            {plan === "premium" && (
+              <div className="mt-8 pt-6 border-t border-slate-800">
+                <FinancingPanel
+                  companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
+                  products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities}
+                  requests={finData.financingRequests} documents={finData.documents}
+                  analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
+                  onAddFinancingRequest={addFinancingRequest}
+                  onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab}
+                />
+              </div>
+            )}
           </Suspense>
         )}
 
