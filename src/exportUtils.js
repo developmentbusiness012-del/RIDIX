@@ -1,3 +1,7 @@
+import { computeCompteResultat, computeCashFlowHistorique, computeCashFlowPrevisionnel, computeEndettementGlobal } from "./analyseFinanciereUtils";
+import { computeDSCR } from "./financingUtils";
+import { liabilityCategoryLabel } from "./constants";
+
 // jsPDF utilise par défaut une police (Helvetica) qui ne sait pas afficher l'espace fine
 // insécable utilisée par Intl.NumberFormat("fr-FR") comme séparateur de milliers — elle se
 // transforme visuellement en "/". On utilise donc un espace normal, uniquement pour le PDF.

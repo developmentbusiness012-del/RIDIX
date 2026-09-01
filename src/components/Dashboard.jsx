@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock, LineChart,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions } from "../constants";
@@ -19,6 +19,7 @@ const CreditsPanel = lazy(() => import("./CreditsPanel"));
 const IntelligencePanel = lazy(() => import("./IntelligencePanel"));
 const BilanPanel = lazy(() => import("./BilanPanel"));
 const FinancingPanel = lazy(() => import("./FinancingPanel"));
+const AnalysisPanel = lazy(() => import("./AnalysisPanel"));
 const DataRoomPanel = lazy(() => import("./DataRoomPanel"));
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
@@ -171,26 +172,28 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   // gardent leur propre état local car ils ne sont pas eux-mêmes calculés à partir de ces données).
   // Chargées une seule fois et recalculées ensemble pour garantir que les deux onglets affichent
   // toujours exactement les mêmes chiffres (RIDIX Score, capacité indicative, score de préparation).
-  const [finData, setFinData] = useState({ products: [], credits: [], assets: [], liabilities: [], financingRequests: [], documents: [] });
+  const [finData, setFinData] = useState({ products: [], credits: [], assets: [], liabilities: [], liabilityPayments: [], financingRequests: [], financingRequestItems: [], documents: [] });
   const [finDataLoading, setFinDataLoading] = useState(true);
 
   const refreshFinData = useCallback(async () => {
     if (!activeId || plan !== "premium") { setFinDataLoading(false); return; }
     setFinDataLoading(true);
-    const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: finReqs }, { data: docs }] = await Promise.all([
+    const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: liabPay }, { data: finReqs }, { data: finReqItems }, { data: docs }] = await Promise.all([
       supabase.from("products").select("*").eq("company_id", activeId),
       supabase.from("credits").select("*").eq("company_id", activeId),
       supabase.from("assets").select("*").eq("company_id", activeId),
       supabase.from("liabilities").select("*").eq("company_id", activeId),
+      supabase.from("liability_payments").select("*").eq("company_id", activeId),
       supabase.from("financing_requests").select("*").eq("company_id", activeId).order("created_at", { ascending: false }),
+      supabase.from("financing_request_items").select("*").eq("company_id", activeId),
       supabase.from("documents").select("*").eq("company_id", activeId).order("created_at", { ascending: false }),
     ]);
-    setFinData({ products: prods || [], credits: cred || [], assets: ast || [], liabilities: liab || [], financingRequests: finReqs || [], documents: docs || [] });
+    setFinData({ products: prods || [], credits: cred || [], assets: ast || [], liabilities: liab || [], liabilityPayments: liabPay || [], financingRequests: finReqs || [], financingRequestItems: finReqItems || [], documents: docs || [] });
     setFinDataLoading(false);
   }, [activeId, plan]);
 
   useEffect(() => {
-    if (activeTab === "intelligence") refreshFinData();
+    if (activeTab === "intelligence" || activeTab === "analyse") refreshFinData();
   }, [activeTab, activeId, plan, refreshFinData]);
 
   const analysis = useMemo(
@@ -209,6 +212,9 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   );
   const addFinancingRequest = useCallback((req) => {
     setFinData((prev) => ({ ...prev, financingRequests: [req, ...prev.financingRequests] }));
+  }, []);
+  const addFinancingRequestItems = useCallback((items) => {
+    setFinData((prev) => ({ ...prev, financingRequestItems: [...items, ...prev.financingRequestItems] }));
   }, []);
 
   const updateCompany = async (patch) => {
@@ -487,6 +493,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
             ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: plan !== "premium" }] : []),
+            ...(isOwner || perms.canViewIntelligence ? [{ id: "analyse", label: "Analyse", icon: LineChart, locked: plan !== "premium" }] : []),
             ...(isOwner || perms.canViewBilan ? [{ id: "dataroom", label: "Documents", icon: FolderLock, locked: plan !== "premium" }] : []),
             ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
@@ -745,6 +752,17 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           </Suspense>
         )}
 
+        {activeTab === "analyse" && (isOwner || perms.canViewIntelligence) && (
+          <Suspense fallback={<PanelLoading />}>
+            <AnalysisPanel
+              companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
+              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments}
+              requests={finData.financingRequests} capacity={capacity} dataLoading={finDataLoading}
+              onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab}
+            />
+          </Suspense>
+        )}
+
         {activeTab === "dataroom" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
             <DataRoomPanel companyId={activeId} plan={plan} isOwner={isOwner} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
@@ -764,10 +782,10 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
               <div className="mt-8 pt-6 border-t border-slate-800">
                 <FinancingPanel
                   companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
-                  products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities}
-                  requests={finData.financingRequests} documents={finData.documents}
+                  products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments}
+                  requests={finData.financingRequests} requestItems={finData.financingRequestItems} documents={finData.documents}
                   analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
-                  onAddFinancingRequest={addFinancingRequest}
+                  onAddFinancingRequest={addFinancingRequest} onAddFinancingRequestItems={addFinancingRequestItems}
                   onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab}
                 />
               </div>

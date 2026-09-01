@@ -9,7 +9,7 @@ export const TYPES_OP = [
   { id: "autre", label: "Autre", icon: Layers },
 ];
 
-export const CATEGORIES_RECETTE = ["Vente locale", "Vente export", "Prestation de service", "Autre recette"];
+export const CATEGORIES_RECETTE = ["Vente locale", "Vente export", "Prestation de service", "Financement reçu", "Autre recette"];
 export const CATEGORIES_DEPENSE = [
   "Achat marchandise",
   "Transport / Fret",
@@ -17,9 +17,45 @@ export const CATEGORIES_DEPENSE = [
   "Logistique / Entrepôt",
   "Marketing",
   "Salaires",
+  "Loyer",
+  "Impôts & taxes",
   "Frais bancaires / change",
   "Autre dépense",
 ];
+
+// Catégorie(s) de dépense assimilée(s) au coût des marchandises vendues (COGS) pour le compte de résultat.
+export const CATEGORIES_COGS = ["Achat marchandise"];
+// Mapping catégorie -> ligne du compte de résultat / cash-flow (Bloc 3 & 4).
+export const CATEGORIE_LIGNE = {
+  "Vente locale": "ventes",
+  "Vente export": "ventes",
+  "Prestation de service": "ventes",
+  "Financement reçu": "financements_recus",
+  "Autre recette": "autres_revenus",
+  "Achat marchandise": "cogs",
+  "Transport / Fret": "charges_exploitation",
+  "Douane & taxes import": "charges_exploitation",
+  "Logistique / Entrepôt": "charges_exploitation",
+  "Marketing": "charges_exploitation",
+  "Salaires": "salaires",
+  "Loyer": "loyer",
+  "Impôts & taxes": "impots",
+  "Frais bancaires / change": "charges_financieres",
+  "Autre dépense": "charges_exploitation",
+};
+
+export const LIABILITY_CATEGORIES = [
+  { id: "pret_bancaire", label: "Prêt bancaire" },
+  { id: "pret_associe", label: "Prêt associé" },
+  { id: "decouvert", label: "Découvert bancaire" },
+  { id: "leasing", label: "Leasing / Crédit-bail" },
+  { id: "caution", label: "Caution" },
+  { id: "garantie", label: "Garantie" },
+  { id: "autre", label: "Autre engagement" },
+];
+export function liabilityCategoryLabel(id) {
+  return LIABILITY_CATEGORIES.find((c) => c.id === id)?.label || id;
+}
 
 export const PROFILS = [
   { id: "local", label: "Commerçant local" },

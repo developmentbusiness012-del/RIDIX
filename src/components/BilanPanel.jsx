@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Scale, Plus, Trash2, X, Loader2, Landmark, Building } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import { formatMontant } from "../constants";
+import { formatMontant, LIABILITY_CATEGORIES } from "../constants";
 import { PremiumTeaser } from "./StockPanel";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
 
@@ -9,12 +9,6 @@ const ASSET_CATEGORIES = [
   { id: "equipement", label: "Équipement" },
   { id: "vehicule", label: "Véhicule" },
   { id: "immobilier", label: "Immobilier" },
-  { id: "autre", label: "Autre" },
-];
-
-const LIABILITY_CATEGORIES = [
-  { id: "pret_bancaire", label: "Prêt bancaire" },
-  { id: "pret_associe", label: "Prêt associé" },
   { id: "autre", label: "Autre" },
 ];
 
@@ -86,7 +80,11 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
     const nextRembourse = Math.min(Number(liability.montant), Number(liability.montant_rembourse) + montant);
     const statut = nextRembourse >= Number(liability.montant) ? "solde" : "actif";
     const { error } = await supabase.from("liabilities").update({ montant_rembourse: nextRembourse, statut }).eq("id", liability.id);
-    if (!error) setLiabilities((prev) => prev.map((l) => (l.id === liability.id ? { ...l, montant_rembourse: nextRembourse, statut } : l)));
+    if (!error) {
+      setLiabilities((prev) => prev.map((l) => (l.id === liability.id ? { ...l, montant_rembourse: nextRembourse, statut } : l)));
+      // Historique daté du remboursement — alimente le cash-flow historique (Bloc 4).
+      await supabase.from("liability_payments").insert({ company_id: companyId, liability_id: liability.id, montant });
+    }
   };
 
   if (plan !== "premium") {
@@ -158,15 +156,17 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
               <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-y border-slate-800">
                 <th className="px-4 py-2 font-medium">Libellé</th>
                 <th className="px-2 py-2 font-medium">Catégorie</th>
-                <th className="px-2 py-2 font-medium text-right">{tab === "actifs" ? "Valeur" : "Montant"}</th>
-                {tab === "passifs" && <th className="px-2 py-2 font-medium text-right">Reste dû</th>}
+                <th className="px-2 py-2 font-medium text-right">{tab === "actifs" ? "Valeur" : "Montant initial"}</th>
+                {tab === "passifs" && <th className="px-2 py-2 font-medium text-right">Solde</th>}
+                {tab === "passifs" && <th className="px-2 py-2 font-medium text-right">Mensualité</th>}
                 <th className="px-2 py-2 font-medium">{tab === "actifs" ? "Acquis le" : "Échéance"}</th>
+                {tab === "passifs" && <th className="px-2 py-2 font-medium">Terme</th>}
                 <th className="px-2 py-2 w-20"></th>
               </tr>
             </thead>
             <tbody>
               {list.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-slate-500 text-xs py-8">
+                <tr><td colSpan={tab === "actifs" ? 5 : 8} className="text-center text-slate-500 text-xs py-8">
                   {tab === "actifs" ? "Aucun actif immobilisé enregistré." : "Aucun prêt ou passif financier enregistré."}
                 </td></tr>
               )}
@@ -183,13 +183,22 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
               ))}
               {tab === "passifs" && liabilities.map((l) => {
                 const reste = Number(l.montant) - Number(l.montant_rembourse);
+                const courtTerme = l.date_echeance && (new Date(l.date_echeance) - new Date()) <= 365 * 24 * 60 * 60 * 1000;
                 return (
                   <tr key={l.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
                     <td className="px-4 py-2 text-slate-200">{l.name}{l.note && <span className="block text-[11px] text-slate-500">{l.note}</span>}</td>
                     <td className="px-2 py-2 text-slate-400 text-xs">{LIABILITY_CATEGORIES.find((c) => c.id === l.category)?.label || l.category}</td>
                     <td className="px-2 py-2 text-right font-mono text-slate-300">{formatMontant(l.montant, l.devise)}</td>
                     <td className="px-2 py-2 text-right font-mono text-rose-400">{formatMontant(reste, l.devise)}</td>
+                    <td className="px-2 py-2 text-right font-mono text-slate-400">{l.mensualite ? formatMontant(l.mensualite, l.devise) : "—"}</td>
                     <td className="px-2 py-2 text-slate-400 text-xs">{l.date_echeance || "—"}</td>
+                    <td className="px-2 py-2">
+                      {l.date_echeance ? (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${courtTerme ? "border-amber-700/50 text-amber-300" : "border-slate-700 text-slate-400"}`}>
+                          {courtTerme ? "Court terme" : "Long terme"}
+                        </span>
+                      ) : "—"}
+                    </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1">
                         {l.statut === "actif" && (
@@ -315,6 +324,7 @@ function LiabilityForm({ deviseBase, onClose, onSubmit }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("pret_bancaire");
   const [montant, setMontant] = useState("");
+  const [mensualite, setMensualite] = useState("");
   const [tauxInteret, setTauxInteret] = useState("");
   const [dateEcheance, setDateEcheance] = useState("");
   const [note, setNote] = useState("");
@@ -328,6 +338,7 @@ function LiabilityForm({ deviseBase, onClose, onSubmit }) {
       name: name.trim(),
       category,
       montant: Number(montant),
+      mensualite: mensualite ? Number(mensualite) : null,
       devise: deviseBase,
       taux_interet: tauxInteret ? Number(tauxInteret) : null,
       date_echeance: dateEcheance || null,
@@ -366,16 +377,22 @@ function LiabilityForm({ deviseBase, onClose, onSubmit }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <label className="text-xs text-slate-400 block mb-1">Mensualité ({deviseBase})</label>
+              <input type="number" min="0" value={mensualite} onChange={(e) => setMensualite(e.target.value)} placeholder="Optionnel"
+                className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
+            </div>
+            <div>
               <label className="text-xs text-slate-400 block mb-1">Taux d'intérêt % (optionnel)</label>
               <input type="number" min="0" step="0.1" value={tauxInteret} onChange={(e) => setTauxInteret(e.target.value)}
                 className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
             </div>
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Échéance finale</label>
-              <input type="date" value={dateEcheance} onChange={(e) => setDateEcheance(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
-            </div>
           </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Échéance finale</label>
+            <input type="date" value={dateEcheance} onChange={(e) => setDateEcheance(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100" />
+          </div>
+          <p className="text-[11px] text-slate-600">La mensualité et l'échéance servent au calcul du DSCR indicatif et de votre endettement (onglet Analyse).</p>
           <div>
             <label className="text-xs text-slate-400 block mb-1">Note (optionnel)</label>
             <input value={note} onChange={(e) => setNote(e.target.value)}

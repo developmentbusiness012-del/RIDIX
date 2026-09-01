@@ -26,6 +26,30 @@ export function computeCapacity(transactions, dettesOuvertesTotal) {
   return { eligible: true, capacite, avgMonthlyNet, monthsWithData, debtRatio, brut };
 }
 
+// Bloc 5 — Capacité de remboursement / DSCR indicatif. Jamais une décision de crédit :
+// juste un repère pour préparer le dossier. Mensualité nouvelle = besoin / durée (linéaire,
+// sans intérêt — approximation volontairement prudente et simple à expliquer).
+export function computeDSCR({ avgMonthlyNet, liabilities = [], montantSouhaite, dureeMois }) {
+  if (!avgMonthlyNet || avgMonthlyNet <= 0 || !montantSouhaite || !dureeMois) return null;
+
+  const chargesFinancieresExistantes = liabilities
+    .filter((l) => l.statut === "actif" && l.mensualite)
+    .reduce((s, l) => s + Number(l.mensualite), 0);
+
+  const capaciteServiceDette = Math.max(0, avgMonthlyNet - chargesFinancieresExistantes);
+  const mensualiteNouvelle = montantSouhaite / dureeMois;
+  const dscr = mensualiteNouvelle > 0 ? capaciteServiceDette / mensualiteNouvelle : null;
+
+  let appreciation;
+  if (dscr == null) appreciation = "Non calculable.";
+  else if (dscr >= 1.5) appreciation = "Marge confortable — le flux disponible couvre largement la nouvelle mensualité estimée.";
+  else if (dscr >= 1.25) appreciation = "Marge correcte — situation généralement jugée saine par les prêteurs (repère usuel ≥ 1,25x).";
+  else if (dscr >= 1) appreciation = "Marge serrée — le flux disponible couvre tout juste la mensualité estimée, sans coussin de sécurité.";
+  else appreciation = "Flux insuffisant — le flux disponible ne couvrirait pas la mensualité estimée. À retravailler avant de solliciter ce montant/cette durée.";
+
+  return { avgMonthlyNet, chargesFinancieresExistantes, capaciteServiceDette, mensualiteNouvelle, dscr, appreciation };
+}
+
 // Score de préparation au financement (Étape 6) — distinct du Financial Score.
 // Mesure la préparation du dossier, pas la santé financière brute. Boucle vivante :
 // chaque critère est recalculé à partir des vraies données, donc agir sur une recommandation
