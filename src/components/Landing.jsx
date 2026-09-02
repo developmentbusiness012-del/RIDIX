@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import {
   Ship, Package, Store, Wallet, TrendingUp, LineChart, Landmark,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
-  Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout, Gauge,
+  Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout, Gauge, Scale, FolderLock,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
@@ -19,6 +19,8 @@ const FEATURES = [
   { icon: Landmark, title: "Capacité de remboursement (DSCR)", desc: "Un indicateur indicatif de votre capacité de service de la dette, pour préparer votre demande avant de la déposer.", premium: true },
   { icon: FileText, title: "Dossier de financement bancable", desc: "Ratios, endettement, projet à financer, ROI attendu : un PDF prêt à présenter à une banque ou une IMF.", premium: true },
   { icon: Wallet, title: "Tableaux de bord en temps réel", desc: "CA, dépenses, profit et marge — au jour, à la semaine, au mois ou à l'année." },
+  { icon: Scale, title: "Bilan simplifié", desc: "Actifs, passifs et patrimoine net calculés automatiquement — dès l'offre gratuite." },
+  { icon: FolderLock, title: "Data Room sécurisée", desc: "Centralisez vos documents légaux, fiscaux et financiers — dès l'offre gratuite." },
   { icon: Boxes, title: "Gestion des stocks", desc: "Suivez vos quantités et recevez une alerte dès qu'un article approche de la rupture.", premium: true },
   { icon: HandCoins, title: "Crédits & dettes", desc: "Ventes à crédit clients, dettes fournisseurs, paiements partiels — sous contrôle.", premium: true },
   { icon: TrendingUp, title: "Multi-devises natif", desc: `${DEVISES.join(", ")}… converties automatiquement dans votre devise de référence.` },

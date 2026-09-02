@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { Scale, Plus, Trash2, X, Loader2, Landmark, Building } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant, LIABILITY_CATEGORIES } from "../constants";
-import { PremiumTeaser } from "./StockPanel";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
 
 const ASSET_CATEGORIES = [
@@ -22,7 +21,7 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
   const [tab, setTab] = useState("actifs"); // actifs | passifs
 
   useEffect(() => {
-    if (plan !== "premium" || !companyId) { setLoading(false); return; }
+    if (!companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
       const [{ data: a }, { data: l }, { data: p }, { data: c }] = await Promise.all([
@@ -37,7 +36,7 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
       setCredits(c || []);
       setLoading(false);
     })();
-  }, [companyId, plan]);
+  }, [companyId]);
 
   const summary = useMemo(() => {
     const tresorerie = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);
@@ -86,23 +85,6 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
       await supabase.from("liability_payments").insert({ company_id: companyId, liability_id: liability.id, montant });
     }
   };
-
-  if (plan !== "premium") {
-    return (
-      <PremiumTeaser
-        icon={Scale}
-        title="Bilan simplifié"
-        pitch="Vos actifs et passifs en un coup d'œil — trésorerie, stock, créances, immobilisations et prêts — pour connaître votre patrimoine net réel."
-        benefits={[
-          "Immobilisations : équipement, véhicules, immobilier",
-          "Prêts bancaires et prêts associés suivis",
-          "Patrimoine net calculé automatiquement",
-        ]}
-        onUpgrade={onUpgrade}
-        loading={checkoutLoading}
-      />
-    );
-  }
 
   if (loading) {
     return <div className="flex items-center gap-2 text-slate-500 text-sm py-10 justify-center"><Loader2 className="animate-spin" size={16} /> Chargement du bilan…</div>;

@@ -492,9 +492,9 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             { id: "bord", label: "Tableau de bord", icon: null, locked: false },
             { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
             { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
-            ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: plan !== "premium" }] : []),
+            ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: false }] : []),
             ...(isOwner || perms.canViewIntelligence ? [{ id: "analyse", label: "Analyse", icon: LineChart, locked: plan !== "premium" }] : []),
-            ...(isOwner || perms.canViewBilan ? [{ id: "dataroom", label: "Documents", icon: FolderLock, locked: plan !== "premium" }] : []),
+            ...(isOwner || perms.canViewBilan ? [{ id: "dataroom", label: "Documents", icon: FolderLock, locked: false }] : []),
             ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
           ].map((tab) => (

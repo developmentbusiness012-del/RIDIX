@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { FolderLock, Upload, Trash2, Download, Loader2, FileText, X } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import { PremiumTeaser } from "./StockPanel";
 import { ConfirmDialog } from "./Dialogs";
 
 const CATEGORIES = [
@@ -36,14 +35,14 @@ export default function DataRoomPanel({ companyId, plan, isOwner, onUpgrade, che
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (plan !== "premium" || !companyId) { setLoading(false); return; }
+    if (!companyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
       const { data } = await supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
       setDocuments(data || []);
       setLoading(false);
     })();
-  }, [companyId, plan]);
+  }, [companyId]);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -86,23 +85,6 @@ export default function DataRoomPanel({ companyId, plan, isOwner, onUpgrade, che
     if (!delError) setDocuments((prev) => prev.filter((d) => d.id !== confirmDelete.id));
     setConfirmDelete(null);
   };
-
-  if (plan !== "premium") {
-    return (
-      <PremiumTeaser
-        icon={FolderLock}
-        title="Data Room PME"
-        pitch="Un espace sécurisé pour centraliser vos documents légaux, fiscaux et financiers — la base indispensable de tout dossier de financement."
-        benefits={[
-          "Documents classés par catégorie (légal, fiscal, contrats, garanties…)",
-          "Accès restreint aux rôles comptable et gestionnaire",
-          "Prêt à être compilé dans votre dossier de financement",
-        ]}
-        onUpgrade={onUpgrade}
-        loading={checkoutLoading}
-      />
-    );
-  }
 
   if (loading) {
     return <div className="flex items-center gap-2 text-slate-500 text-sm py-10 justify-center"><Loader2 className="animate-spin" size={16} /> Chargement…</div>;
