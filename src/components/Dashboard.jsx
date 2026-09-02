@@ -773,9 +773,9 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           <Suspense fallback={<PanelLoading />}>
             <IntelligencePanel
               companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
-              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities}
-              financingRequests={finData.financingRequests} documents={finData.documents}
-              analysis={analysis} readiness={readiness} dataLoading={finDataLoading}
+              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments}
+              financingRequests={finData.financingRequests} financingRequestItems={finData.financingRequestItems} documents={finData.documents}
+              analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
               onUpgrade={changePlan} checkoutLoading={checkoutLoading}
             />
             {plan === "premium" && (

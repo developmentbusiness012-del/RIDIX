@@ -78,7 +78,7 @@ export async function exportPdf(transactions, company, kpis) {
 // ---------- Pilier 3 : Dossier de financement (Premium) ----------
 // Document professionnel destiné à être partagé avec une banque ou un investisseur :
 // historique, indicateurs de fiabilité, score de santé, projection de trésorerie.
-export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = [], financingRequest = null, readiness = null, documents = []) {
+export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = [], financingRequest = null, readiness = null, documents = [], requestItems = [], liabilityPayments = [], capacity = null) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
@@ -87,6 +87,29 @@ export async function exportDossierFinancement(transactions, products, credits, 
   const devise = company.devise_base;
   const pageWidth = doc.internal.pageSize.getWidth();
   const today = new Date();
+
+  // ---------- Bloc 3-6 : mêmes calculs que l'onglet Analyse, réutilisés tels quels ----------
+  const compteResultat = computeCompteResultat(transactions, { months: 12 });
+  const cashFlowHisto = computeCashFlowHistorique(transactions, liabilityPayments, liabilities, { months: 12 });
+  const cashFlowPrevisionnel = computeCashFlowPrevisionnel(transactions, liabilities, { monthsAhead: 6 });
+  const avgMonthlyNet = capacity?.avgMonthlyNet ?? (cashFlowHisto.length >= 3
+    ? cashFlowHisto.slice(-3).reduce((s, m) => s + m.net, 0) / 3
+    : null);
+  const tresorerieBase = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);
+  const valeurStockBase = products.reduce((s, p) => s + Number(p.quantity) * Number(p.cost_price || p.unit_price || 0), 0);
+  const creancesBase = credits.filter((c) => c.type === "client" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
+  const immobilisationsBase = assets.reduce((s, a) => s + Number(a.valeur), 0);
+  const totalActifsBase = tresorerieBase + valeurStockBase + creancesBase + immobilisationsBase;
+  const dettesFournisseursBase = credits.filter((c) => c.type === "fournisseur" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
+  const dettesFinancieresBase = liabilities.filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
+  const capitauxPropresBase = totalActifsBase - (dettesFournisseursBase + dettesFinancieresBase);
+  const endettement = computeEndettementGlobal({ credits, liabilities, ca: compteResultat.ca, avgMonthlyNet: avgMonthlyNet || 0, capitauxPropres: capitauxPropresBase });
+  const dscr = (financingRequest && avgMonthlyNet)
+    ? computeDSCR({ avgMonthlyNet, liabilities, montantSouhaite: financingRequest.montant_souhaite, dureeMois: financingRequest.duree_mois })
+    : null;
+  const utilisationItems = financingRequest ? requestItems.filter((i) => i.financing_request_id === financingRequest.id) : [];
+  const margeEstimee = financingRequest?.ca_attendu != null ? Number(financingRequest.ca_attendu) - Number(financingRequest.montant_souhaite) : null;
+  const roiPct = margeEstimee != null && Number(financingRequest?.montant_souhaite) > 0 ? (margeEstimee / Number(financingRequest.montant_souhaite)) * 100 : null;
 
   // ---------- Page de garde ----------
   doc.setFillColor(15, 23, 42);
@@ -158,6 +181,45 @@ export async function exportDossierFinancement(transactions, products, credits, 
         columnStyles: { 0: { textColor: [71, 85, 105], cellWidth: 50 }, 1: { fontStyle: "bold" } },
       });
       curY = doc.lastAutoTable.finalY + 12;
+
+      if (utilisationItems.length > 0) {
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 20, 20);
+        doc.text("Utilisation du financement", 14, curY);
+        autoTable(doc, {
+          startY: curY + 4,
+          head: [["Poste", "Montant"]],
+          body: [
+            ...utilisationItems.map((i) => [i.libelle, formatMontant(i.montant, financingRequest.devise)]),
+            ["Total ventilé", formatMontant(utilisationItems.reduce((s, i) => s + Number(i.montant), 0), financingRequest.devise)],
+          ],
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [30, 41, 59] },
+          didParseCell: (data) => { if (data.row.index === utilisationItems.length) data.cell.styles.fontStyle = "bold"; },
+        });
+        curY = doc.lastAutoTable.finalY + 12;
+      }
+
+      if (financingRequest.ca_attendu != null || financingRequest.delai_rotation_jours != null) {
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 20, 20);
+        doc.text("ROI attendu du projet", 14, curY);
+        const roiRows = [];
+        if (financingRequest.ca_attendu != null) roiRows.push(["CA attendu grâce au financement", formatMontant(financingRequest.ca_attendu, financingRequest.devise)]);
+        if (margeEstimee != null) roiRows.push(["Marge estimée", formatMontant(margeEstimee, financingRequest.devise)]);
+        if (roiPct != null) roiRows.push(["ROI attendu", `${roiPct.toFixed(0)} %`]);
+        if (financingRequest.delai_rotation_jours != null) roiRows.push(["Délai de rotation estimé", `${financingRequest.delai_rotation_jours} jours`]);
+        autoTable(doc, {
+          startY: curY + 4,
+          body: roiRows,
+          theme: "plain",
+          styles: { fontSize: 10, cellPadding: 1.5 },
+          columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
+        });
+        curY = doc.lastAutoTable.finalY + 12;
+      }
     }
 
     doc.setFontSize(8);
@@ -195,6 +257,37 @@ export async function exportDossierFinancement(transactions, products, credits, 
         });
       }
     }
+
+    if (dscr) {
+      curY += 4;
+      if (curY > 250) { doc.addPage(); curY = 20; }
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Capacité de remboursement — DSCR indicatif : ${dscr.dscr.toFixed(2)}x`, 14, curY);
+      autoTable(doc, {
+        startY: curY + 4,
+        body: [
+          ["Flux de trésorerie disponible", `${formatMontant(dscr.avgMonthlyNet, devise)} / mois`],
+          ["Charges financières existantes", `${formatMontant(dscr.chargesFinancieresExistantes, devise)} / mois`],
+          ["Capacité indicative de service de la dette", `${formatMontant(dscr.capaciteServiceDette, devise)} / mois`],
+          ["Mensualité nouvelle estimée (linéaire)", `${formatMontant(dscr.mensualiteNouvelle, devise)} / mois`],
+        ],
+        theme: "plain",
+        styles: { fontSize: 10, cellPadding: 1.5 },
+        columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
+      });
+      curY = doc.lastAutoTable.finalY + 5;
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      const dscrLines = doc.splitTextToSize(dscr.appreciation, pageWidth - 28);
+      doc.text(dscrLines, 14, curY);
+      curY += dscrLines.length * 4.5 + 4;
+      doc.setFontSize(8);
+      doc.setTextColor(180, 130, 30);
+      doc.text("Ceci n'est pas une décision de crédit — le DSCR est un indicateur d'analyse indicatif.", 14, curY);
+    }
   }
 
   // ---------- Page : Documents disponibles (Data Room) ----------
@@ -214,65 +307,77 @@ export async function exportDossierFinancement(transactions, products, credits, 
     doc.text("Ces documents sont conservés dans votre Data Room RIDIX et peuvent être transmis séparément à l'institution financière.", 14, doc.lastAutoTable.finalY + 10);
   }
 
-  // ---------- Page 2 : Bilan d'activité ----------
+  // ---------- Page 2 : Compte de résultat (Bloc 3) ----------
   doc.addPage();
-  sectionTitle(doc, "Bilan d'activité");
+  sectionTitle(doc, "Compte de résultat (12 derniers mois)");
 
-  const ca = transactions.filter((t) => t.sens === "recette").reduce((s, t) => s + Number(t.montant_base), 0);
-  const dep = transactions.filter((t) => t.sens === "depense").reduce((s, t) => s + Number(t.montant_base), 0);
-  const profit = ca - dep;
-  const marge = ca > 0 ? (profit / ca) * 100 : 0;
+  const ca = compteResultat.ca;
 
   autoTable(doc, {
     startY: 30,
     body: [
-      ["Chiffre d'affaires cumulé", formatMontant(ca, devise)],
-      ["Dépenses cumulées", formatMontant(dep, devise)],
-      ["Profit net cumulé", formatMontant(profit, devise)],
-      ["Marge moyenne", `${marge.toFixed(1)} %`],
+      ["Chiffre d'affaires", formatMontant(compteResultat.ca, devise)],
+      ["Coût des marchandises vendues (COGS)", formatMontant(-compteResultat.cogs, devise)],
+      ["Marge brute", `${formatMontant(compteResultat.margeBrute, devise)}  (${compteResultat.margeBrutePct.toFixed(1)} %)`],
+      ["  — dont salaires", formatMontant(-compteResultat.charges.salaires, devise)],
+      ["  — dont loyer", formatMontant(-compteResultat.charges.loyer, devise)],
+      ["  — dont autres charges d'exploitation", formatMontant(-compteResultat.charges.autres, devise)],
+      ["EBITDA (avant charges financières & impôts)", formatMontant(compteResultat.ebitda, devise)],
+      ["Résultat d'exploitation", formatMontant(compteResultat.resultatExploitation, devise)],
+      ["Charges financières", formatMontant(-compteResultat.chargesFinancieres, devise)],
+      ["Impôts & taxes", formatMontant(-compteResultat.impots, devise)],
+      ["Résultat net", `${formatMontant(compteResultat.resultatNet, devise)}  (${compteResultat.margeNettePct.toFixed(1)} %)`],
     ],
     theme: "plain",
-    styles: { fontSize: 11, cellPadding: 2 },
+    styles: { fontSize: 9.5, cellPadding: 1.8 },
     columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
+    didParseCell: (data) => {
+      if ([2, 6, 10].includes(data.row.index)) { data.cell.styles.fontStyle = "bold"; data.cell.styles.fillColor = [241, 245, 249]; }
+    },
   });
+  curY = doc.lastAutoTable.finalY + 5;
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text("EBITDA = Résultat d'exploitation ici, faute d'amortissements suivis dans RIDIX.", 14, curY);
+  curY += 10;
 
-  // Évolution mensuelle
-  const monthly = {};
-  transactions.forEach((t) => {
-    const key = t.date.slice(0, 7);
-    if (!monthly[key]) monthly[key] = { recette: 0, depense: 0 };
-    monthly[key][t.sens === "recette" ? "recette" : "depense"] += Number(t.montant_base);
-  });
-  const months = Object.keys(monthly).sort().slice(-12);
-
-  curY = doc.lastAutoTable.finalY + 12;
+  // ---------- Cash-flow historique (Bloc 4) ----------
   doc.setFont(undefined, "bold");
   doc.setFontSize(11);
   doc.setTextColor(20, 20, 20);
-  doc.text("Évolution mensuelle (12 derniers mois avec activité)", 14, curY);
-
+  doc.text("Cash-flow historique (12 derniers mois)", 14, curY);
   autoTable(doc, {
     startY: curY + 4,
-    head: [["Mois", "Recettes", "Dépenses", "Net"]],
-    body: months.map((m) => {
-      const { recette, depense } = monthly[m];
-      return [m, formatMontant(recette, devise), formatMontant(depense, devise), formatMontant(recette - depense, devise)];
-    }),
-    styles: { fontSize: 9 },
+    head: [["Mois", "Entrées", "Sorties", "Net", "Cumul"]],
+    body: cashFlowHisto.map((m) => [m.label, formatMontant(m.entrees, devise), formatMontant(m.sorties, devise), formatMontant(m.net, devise), formatMontant(m.cumul, devise)]),
+    styles: { fontSize: 8 },
     headStyles: { fillColor: [30, 41, 59] },
   });
+  curY = doc.lastAutoTable.finalY + 5;
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text("Entrées = ventes + autres revenus + financements reçus. Sorties = achats, salaires, loyers, impôts, autres charges, remboursements de crédit.", 14, curY);
+  curY += 10;
 
-  if (analysis.forecast) {
-    curY = doc.lastAutoTable.finalY + 12;
+  // ---------- Cash-flow prévisionnel (Bloc 4) ----------
+  if (cashFlowPrevisionnel) {
+    if (curY > 220) { doc.addPage(); curY = 20; }
     doc.setFont(undefined, "bold");
-    doc.text("Projection de trésorerie", 14, curY);
+    doc.setFontSize(11);
+    doc.setTextColor(20, 20, 20);
+    doc.text("Cash-flow prévisionnel (6 prochains mois, 3 scénarios)", 14, curY);
     autoTable(doc, {
       startY: curY + 4,
-      head: [["Mois projeté", "Net estimé"]],
-      body: analysis.forecast.map((f) => [f.mois, formatMontant(f.net, devise)]),
+      head: [["Mois projeté", "Prudent", "Normal", "Optimiste"]],
+      body: cashFlowPrevisionnel.map((r) => [r.mois, formatMontant(r.prudent, devise), formatMontant(r.normal, devise), formatMontant(r.optimiste, devise)]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [30, 41, 59] },
     });
+    curY = doc.lastAutoTable.finalY + 5;
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Flux net mensuel moyen (3 derniers mois) × 0,75 / 1 / 1,2, diminué des mensualités de dettes déjà connues.", 14, curY);
   }
 
   // ---------- Page 3 : Stock, créances et dettes ----------
@@ -316,43 +421,39 @@ export async function exportDossierFinancement(transactions, products, credits, 
     });
   }
 
-  // Bilan simplifié (actifs / passifs), si des immobilisations ou prêts sont renseignés
-  if (assets.length > 0 || liabilities.length > 0) {
+  // ---------- Bilan & Endettement global (Bloc 6) ----------
+  {
     doc.addPage();
-    sectionTitle(doc, "Bilan simplifié");
-
-    const immobilisations = assets.reduce((s, a) => s + Number(a.valeur), 0);
-    const tresorerie = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);
-    const passifsFinanciers = liabilities.filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
-    const totalActifs = tresorerie + valeurStock + creancesOuvertes + immobilisations;
-    const totalPassifs = dettesOuvertes + passifsFinanciers;
+    sectionTitle(doc, "Bilan & endettement global");
 
     autoTable(doc, {
       startY: 30,
       body: [
-        ["Trésorerie nette (cumul recettes - dépenses)", formatMontant(tresorerie, devise)],
-        ["Stock (prix de revient)", formatMontant(valeurStock, devise)],
-        ["Créances clients", formatMontant(creancesOuvertes, devise)],
-        ["Immobilisations (équipement, véhicules, immobilier)", formatMontant(immobilisations, devise)],
-        ["Total actifs", formatMontant(totalActifs, devise)],
-        ["Dettes fournisseurs", formatMontant(dettesOuvertes, devise)],
-        ["Prêts & passifs financiers", formatMontant(passifsFinanciers, devise)],
-        ["Total passifs", formatMontant(totalPassifs, devise)],
-        ["Patrimoine net (actifs - passifs)", formatMontant(totalActifs - totalPassifs, devise)],
+        ["Trésorerie nette (cumul recettes - dépenses)", formatMontant(tresorerieBase, devise)],
+        ["Stock (prix de revient)", formatMontant(valeurStockBase, devise)],
+        ["Créances clients", formatMontant(creancesBase, devise)],
+        ["Immobilisations (équipement, véhicules, immobilier)", formatMontant(immobilisationsBase, devise)],
+        ["Total actifs", formatMontant(totalActifsBase, devise)],
+        ["Capitaux propres (résiduels)", formatMontant(capitauxPropresBase, devise)],
+        ["Dettes fournisseurs", formatMontant(dettesFournisseursBase, devise)],
+        ["Dettes financières", formatMontant(dettesFinancieresBase, devise)],
+        ["Total passifs", formatMontant(capitauxPropresBase + dettesFournisseursBase + dettesFinancieresBase, devise)],
       ],
       theme: "plain",
       styles: { fontSize: 10, cellPadding: 2 },
       columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
       didParseCell: (data) => {
-        if (data.row.index === 4 || data.row.index === 7 || data.row.index === 8) {
-          data.cell.styles.fontStyle = "bold";
-          data.cell.styles.fillColor = [241, 245, 249];
-        }
+        if ([4, 8].includes(data.row.index)) { data.cell.styles.fontStyle = "bold"; data.cell.styles.fillColor = [241, 245, 249]; }
       },
     });
+    curY = doc.lastAutoTable.finalY + 5;
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Les capitaux propres sont ici un résidu comptable (actif − dettes), faute d'un suivi séparé des apports associés.", 14, curY);
+    curY += 10;
 
     if (assets.length > 0) {
-      curY = doc.lastAutoTable.finalY + 12;
+      if (curY > 240) { doc.addPage(); curY = 20; }
       doc.setFont(undefined, "bold");
       doc.setFontSize(11);
       doc.setTextColor(20, 20, 20);
@@ -364,22 +465,46 @@ export async function exportDossierFinancement(transactions, products, credits, 
         styles: { fontSize: 9 },
         headStyles: { fillColor: [30, 41, 59] },
       });
+      curY = doc.lastAutoTable.finalY + 12;
     }
 
-    if (liabilities.length > 0) {
-      curY = doc.lastAutoTable.finalY + 12;
+    if (endettement.creanciers.length > 0) {
+      if (curY > 230) { doc.addPage(); curY = 20; }
       doc.setFont(undefined, "bold");
       doc.setFontSize(11);
       doc.setTextColor(20, 20, 20);
-      doc.text("Détail des prêts & passifs financiers", 14, curY);
+      doc.text("Détail des créanciers (dettes financières actives)", 14, curY);
       autoTable(doc, {
         startY: curY + 4,
-        head: [["Libellé", "Catégorie", "Montant", "Reste dû"]],
-        body: liabilities.map((l) => [l.name, l.category, formatMontant(l.montant, l.devise), formatMontant(Number(l.montant) - Number(l.montant_rembourse), l.devise)]),
-        styles: { fontSize: 9 },
+        head: [["Créancier", "Type", "Montant initial", "Solde", "Mensualité", "Échéance", "Terme"]],
+        body: endettement.creanciers.map((c) => [
+          c.nom, liabilityCategoryLabel(c.category), formatMontant(c.montantInitial, c.devise), formatMontant(c.solde, c.devise),
+          c.mensualite ? formatMontant(c.mensualite, c.devise) : "—", c.echeance || "—", c.terme === "court" ? "Court terme" : "Long terme",
+        ]),
+        styles: { fontSize: 8 },
         headStyles: { fillColor: [30, 41, 59] },
       });
+      curY = doc.lastAutoTable.finalY + 12;
     }
+
+    if (curY > 230) { doc.addPage(); curY = 20; }
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 20, 20);
+    doc.text("Ratios d'endettement", 14, curY);
+    autoTable(doc, {
+      startY: curY + 4,
+      body: [
+        ["Debt-to-Equity", endettement.debtToEquity != null ? `${endettement.debtToEquity.toFixed(2)}x` : "—"],
+        ["Debt-to-Revenue", endettement.debtToRevenue != null ? `${(endettement.debtToRevenue * 100).toFixed(0)} %` : "—"],
+        ["Debt Service Ratio", endettement.debtServiceRatio != null ? `${(endettement.debtServiceRatio * 100).toFixed(0)} %` : "—"],
+        ["Endettement court terme", formatMontant(endettement.courtTerme, devise)],
+        ["Endettement long terme", formatMontant(endettement.longTerme, devise)],
+      ],
+      theme: "plain",
+      styles: { fontSize: 10, cellPadding: 1.8 },
+      columnStyles: { 0: { textColor: [71, 85, 105] }, 1: { fontStyle: "bold", halign: "right" } },
+    });
   }
 
   if (analysis.topProfitables.length > 0) {
