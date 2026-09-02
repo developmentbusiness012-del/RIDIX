@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import {
-  Ship, Package, Store, Layers, Wallet, TrendingUp, FileSpreadsheet,
+  Ship, Package, Store, Wallet, TrendingUp, LineChart, Landmark,
   UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
-  Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout,
+  Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout, Gauge,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
@@ -14,22 +14,24 @@ import { Reveal, LiveCompanyCounter } from "./LandingMotion";
 import { useState } from "react";
 
 const FEATURES = [
+  { icon: Gauge, title: "Santé financière en un coup d'œil", desc: "Score de préparation au financement et alertes automatiques : trésorerie, créances, marge, dettes.", premium: true },
+  { icon: LineChart, title: "Compte de résultat & cash-flow", desc: "CA, marge brute, EBITDA, résultat net et cash-flow (historique + prévisionnel 3 scénarios) générés automatiquement.", premium: true },
+  { icon: Landmark, title: "Capacité de remboursement (DSCR)", desc: "Un indicateur indicatif de votre capacité de service de la dette, pour préparer votre demande avant de la déposer.", premium: true },
+  { icon: FileText, title: "Dossier de financement bancable", desc: "Ratios, endettement, projet à financer, ROI attendu : un PDF prêt à présenter à une banque ou une IMF.", premium: true },
   { icon: Wallet, title: "Tableaux de bord en temps réel", desc: "CA, dépenses, profit et marge — au jour, à la semaine, au mois ou à l'année." },
   { icon: Boxes, title: "Gestion des stocks", desc: "Suivez vos quantités et recevez une alerte dès qu'un article approche de la rupture.", premium: true },
   { icon: HandCoins, title: "Crédits & dettes", desc: "Ventes à crédit clients, dettes fournisseurs, paiements partiels — sous contrôle.", premium: true },
-  { icon: Sparkles, title: "Intelligence financière", desc: "Score de santé, détection d'anomalies, prévision de trésorerie.", premium: true },
-  { icon: Layers, title: "Tous les profils", desc: "Local, importateur, exportateur ou mixte : chaque écriture est taguée par profil." },
   { icon: TrendingUp, title: "Multi-devises natif", desc: `${DEVISES.join(", ")}… converties automatiquement dans votre devise de référence.` },
   { icon: UploadCloud, title: "Import CSV en masse", desc: "Importez vos écritures existantes en quelques secondes." },
-  { icon: FileSpreadsheet, title: "Exports Excel & PDF", desc: "Des rapports professionnels pour votre comptable ou vos partenaires." },
   { icon: Users, title: "Équipe avec suivi individuel", desc: "Chaque employé ne voit que ses chiffres ; vous voyez tout, nom par nom.", premium: true },
   { icon: WifiOff, title: "Fonctionne hors connexion", desc: "Enregistrez vos écritures même sans réseau — ça se synchronise tout seul." },
 ];
 
-const STEPS = [
-  { n: "01", title: "Créez votre compte", desc: "Le nom de votre entreprise suffit. Accès immédiat, sans confirmation d'email." },
-  { n: "02", title: "Enregistrez vos écritures", desc: "Ventes, achats, import, export — saisie manuelle ou import CSV." },
-  { n: "03", title: "Pilotez votre activité", desc: "Suivez votre CA, vos dépenses et votre marge en temps réel." },
+const PIPELINE = [
+  { icon: Wallet, title: "Vous saisissez", desc: "Ventes, achats, stock, crédits — en quelques secondes, avec ou sans connexion." },
+  { icon: Gauge, title: "RIDIX analyse", desc: "Compte de résultat, bilan, cash-flow et score de santé financière recalculés en continu." },
+  { icon: Landmark, title: "Vous évaluez votre solidité", desc: "Endettement global, DSCR indicatif, ratios : vous savez où vous en êtes avant de frapper à une porte." },
+  { icon: FileText, title: "Vous vous présentez financé", desc: "Un dossier de financement complet, généré en un clic, prêt pour votre banque ou votre IMF." },
 ];
 
 export default function Landing({ onEnter }) {
@@ -79,23 +81,24 @@ export default function Landing({ onEnter }) {
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
               className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.15em] text-forest bg-forest/10 border border-forest/20 rounded-full px-3 py-1.5 mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-forest-bright animate-pulse" />
-              Commerçants · Importateurs · Exportateurs
+              Fintech · Intelligence financière PME
             </motion.div>
 
             <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
               className="font-serif font-semibold text-[2.6rem] sm:text-6xl text-ink leading-[1.05] mb-6 tracking-tight">
-              Votre commerce mérite <span className="relative inline-block text-forest">
-                mieux qu'un cahier
+              Pilotez vos finances. <span className="relative inline-block text-forest">
+                Devenez finançable.
                 <svg className="absolute -bottom-1 left-0 w-full" height="10" viewBox="0 0 200 10" preserveAspectRatio="none">
                   <path d="M0 6 Q50 0 100 5 T200 4" stroke="#D4A017" strokeWidth="4" fill="none" strokeLinecap="round" />
                 </svg>
-              </span>.
+              </span>
             </motion.h1>
 
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.2 }}
               className="text-ink/60 text-lg leading-relaxed mb-8 max-w-md">
-              RIDIX transforme votre téléphone en registre financier complet — recettes, stock, crédits et intelligence
-              financière, pensé pour le commerce africain, du marché local à l'export.
+              RIDIX est la plateforme d'intelligence financière qui aide les PME africaines à piloter leur
+              activité, évaluer leur santé financière en temps réel et préparer un dossier de financement
+              bancable — sans comptable dédié.
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }}
@@ -161,7 +164,7 @@ export default function Landing({ onEnter }) {
                 style={{ transform: "translateZ(60px)" }}
                 className="absolute -left-16 top-16 bg-white rounded-xl shadow-2xl shadow-ink/20 px-4 py-3 border border-ink/5"
               >
-                <p className="text-[9px] text-ink/40 font-mono uppercase mb-0.5">Score financier</p>
+                <p className="text-[9px] text-ink/40 font-mono uppercase mb-0.5">Préparation au financement</p>
                 <p className="font-serif text-2xl text-forest font-semibold">86<span className="text-xs text-ink/30">/100</span></p>
               </motion.div>
 
@@ -186,10 +189,10 @@ export default function Landing({ onEnter }) {
       <Reveal>
         <div className="border-y border-ink/5 bg-white/60 py-6">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-wrap gap-x-10 gap-y-3 justify-center text-sm text-ink/50">
+            <span className="flex items-center gap-2"><Gauge size={15} className="text-forest" /> Score de santé financière</span>
+            <span className="flex items-center gap-2"><FileText size={15} className="text-forest" /> Dossier de financement inclus</span>
             <span className="flex items-center gap-2"><ShieldCheck size={15} className="text-forest" /> Données sécurisées</span>
             <span className="flex items-center gap-2"><WifiOff size={15} className="text-forest" /> Fonctionne hors ligne</span>
-            <span className="flex items-center gap-2"><Users size={15} className="text-forest" /> Équipe encadrée</span>
-            <span className="flex items-center gap-2"><FileText size={15} className="text-forest" /> Dossier de financement inclus</span>
           </div>
         </div>
       </Reveal>
@@ -207,8 +210,8 @@ export default function Landing({ onEnter }) {
             avec une connexion capricieuse.
           </p>
           <p className="text-ink/60 text-[15px] leading-relaxed">
-            Pas une application étrangère traduite en français — un outil pensé depuis le premier jour pour la
-            réalité du commerçant africain.
+            Et quand vient le moment de solliciter une banque ou une institution de microfinance locale, votre
+            dossier parle déjà leur langage : ratios, cash-flow, capacité de remboursement.
           </p>
         </Reveal>
       </section>
@@ -217,9 +220,10 @@ export default function Landing({ onEnter }) {
       <section id="fonctionnalites" className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
         <Reveal className="text-center mb-14">
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">Fonctionnalités</span>
-          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3 mb-3">Tout ce qu'il faut pour piloter votre activité</h2>
+          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3 mb-3">De la gestion quotidienne à la préparation au financement</h2>
           <p className="text-ink/50 text-[15px] max-w-xl mx-auto">
-            Que vous vendiez au comptoir, importiez des conteneurs ou exportiez vos produits, RIDIX s'adapte à votre réalité.
+            Que vous vendiez au comptoir, importiez des conteneurs ou exportiez vos produits, RIDIX pilote vos
+            chiffres au quotidien — et les transforme en dossier bancable quand vous en avez besoin.
           </p>
         </Reveal>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -250,15 +254,19 @@ export default function Landing({ onEnter }) {
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
           <Reveal className="text-center mb-14">
             <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold-bright">Comment ça marche</span>
-            <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-white mt-3">Opérationnel en trois étapes</h2>
+            <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-white mt-3 mb-3">De vos écritures à votre dossier bancable</h2>
+            <p className="text-white/50 text-[15px] max-w-xl mx-auto">RIDIX ne se contente pas d'enregistrer vos chiffres — il les transforme en preuve de solidité financière.</p>
           </Reveal>
-          <div className="grid sm:grid-cols-3 gap-8">
-            {STEPS.map((s, i) => (
-              <Reveal key={s.n} delay={i * 0.12}>
-                <div className="border-t-2 border-gold/40 pt-6">
-                  <span className="font-mono text-4xl text-gold-bright/40">{s.n}</span>
-                  <h3 className="font-serif text-xl text-white mt-3 mb-2">{s.title}</h3>
-                  <p className="text-[14px] text-white/50 leading-relaxed">{s.desc}</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {PIPELINE.map((s, i) => (
+              <Reveal key={s.title} delay={i * 0.1}>
+                <div className="border-t-2 border-gold/40 pt-6 h-full">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center mb-3">
+                    <s.icon size={16} className="text-gold-bright" />
+                  </div>
+                  <span className="font-mono text-xs text-gold-bright/50">0{i + 1}</span>
+                  <h3 className="font-serif text-lg text-white mt-1 mb-2">{s.title}</h3>
+                  <p className="text-[13px] text-white/50 leading-relaxed">{s.desc}</p>
                 </div>
               </Reveal>
             ))}
@@ -350,7 +358,7 @@ export default function Landing({ onEnter }) {
         <Reveal className="text-center mb-12">
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">Tarifs</span>
           <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3 mb-3">Une offre pour chaque étape de votre croissance</h2>
-          <p className="text-ink/50 text-[15px]">Ne perdez plus une vente faute de stock, ni une créance oubliée.</p>
+          <p className="text-ink/50 text-[15px]">Ne perdez plus une vente faute de stock, ni un financement faute de dossier.</p>
         </Reveal>
         <div className="grid md:grid-cols-3 gap-5 mb-8">
           {PLANS.map((p, i) => (
@@ -412,8 +420,8 @@ export default function Landing({ onEnter }) {
         <div className="relative max-w-2xl mx-auto px-4 sm:px-6">
           <Reveal>
             <GrowthIllustration className="w-44 h-auto mx-auto mb-6" />
-            <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-white mb-4">Prêt à voir clair dans vos finances ?</h2>
-            <p className="text-white/50 text-[15px] mb-8">Rejoignez les <LiveCompanyCounter className="text-gold-bright font-semibold" /> entreprises déjà sur RIDIX — gratuit, sans engagement, en moins d'une minute.</p>
+            <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-white mb-4">Prêt à devenir finançable ?</h2>
+            <p className="text-white/50 text-[15px] mb-8">Rejoignez les <LiveCompanyCounter className="text-gold-bright font-semibold" /> entreprises qui pilotent déjà leurs finances et préparent leur financement sur RIDIX — gratuit, sans engagement, en moins d'une minute.</p>
             <button onClick={() => onEnter("signup")}
               className="group inline-flex items-center gap-2 bg-gradient-to-r from-gold to-gold-bright text-ink font-bold rounded-full px-8 py-4 text-[15px] shadow-2xl shadow-gold/20 hover:-translate-y-1 transition-all">
               Créer mon compte gratuitement
@@ -424,7 +432,7 @@ export default function Landing({ onEnter }) {
       </section>
 
       <footer className="border-t border-ink/5 py-8 text-center text-xs text-ink/40 font-mono">
-        <p className="mb-2">RIDIX — pensé pour les commerçants, importateurs et exportateurs.</p>
+        <p className="mb-2">RIDIX — la plateforme d'intelligence financière des PME africaines.</p>
         <div className="flex items-center justify-center gap-4">
           <button onClick={() => setShowLegal("cgu")} className="hover:text-ink underline">Conditions d'utilisation</button>
           <button onClick={() => setShowLegal("confidentialite")} className="hover:text-ink underline">Confidentialité</button>
