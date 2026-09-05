@@ -178,6 +178,7 @@ export default function AdminDashboard({ onBack }) {
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-y border-slate-800">
                   <th className="px-4 py-2 font-medium">Email</th>
+                  <th className="px-2 py-2 font-medium">Téléphone</th>
                   <th className="px-2 py-2 font-medium">Rôle</th>
                   <th className="px-2 py-2 font-medium">Offre</th>
                   <th className="px-2 py-2 font-medium">Pays</th>
@@ -191,6 +192,7 @@ export default function AdminDashboard({ onBack }) {
                 {(stats.users || []).map((u, i) => (
                   <tr key={i} className="border-b border-slate-800/60 hover:bg-slate-800/30">
                     <td className="px-4 py-2 text-slate-300">{u.email}</td>
+                    <td className="px-2 py-2 text-slate-400 font-mono text-xs">{u.phone || "—"}</td>
                     <td className="px-2 py-2">
                       <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${u.role === "owner" ? "text-indigo-300 border-indigo-400" : "text-slate-400 border-slate-600"}`}>
                         {u.role === "owner" ? "propriétaire" : "employé"}

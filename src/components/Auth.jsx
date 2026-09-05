@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
-import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe } from "lucide-react";
+import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe, Phone } from "lucide-react";
 import ForgotPassword from "./ForgotPassword";
 import LegalDocsModal from "./LegalDocsModal";
 import { PAYS_AFRIQUE } from "../constants";
@@ -12,6 +12,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [employeeName, setEmployeeName] = useState("");
+  const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("Cameroun");
   const [companyCode, setCompanyCode] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -33,7 +34,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { account_type: "owner", company_name: companyName, country } },
+          options: { data: { account_type: "owner", company_name: companyName, country, phone: phone.trim() } },
         });
         if (error) throw error;
       } else if (mode === "employee") {
@@ -44,7 +45,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
         });
         if (error) throw error;
         if (data.session) {
-          const { error: joinError } = await supabase.rpc("join_company_with_code", { p_code: companyCode, p_name: employeeName });
+          const { error: joinError } = await supabase.rpc("join_company_with_code", { p_code: companyCode, p_name: employeeName, p_phone: phone.trim() });
           if (joinError) throw joinError;
         }
       } else {
@@ -152,6 +153,20 @@ export default function Auth({ initialMode = "signin", onBack }) {
                   maxLength={8}
                 />
                 <p className="text-[11px] text-slate-500 mt-1">Ce code vous a été transmis par le propriétaire de l'entreprise.</p>
+              </div>
+            )}
+
+            {mode !== "signin" && (
+              <div>
+                <label className="flex items-center gap-1.5 text-xs text-slate-400 mb-1"><Phone size={12} /> Numéro de téléphone</label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
+                  placeholder="Ex : +237 6XX XX XX XX"
+                />
               </div>
             )}
 
