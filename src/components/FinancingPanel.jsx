@@ -18,7 +18,7 @@ const NEED_TYPES = [
 
 // products/credits/assets/liabilities/requests/documents/analysis/readiness/capacity viennent de
 // Dashboard.jsx (calculés une seule fois, partagés avec IntelligencePanel — voir la note là-bas).
-export default function FinancingPanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], requests = [], requestItems = [], documents = [], analysis, readiness, capacity, dataLoading, onAddFinancingRequest, onAddFinancingRequestItems, onUpgrade, checkoutLoading, onNavigate }) {
+export default function FinancingPanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], cashAccounts = [], requests = [], requestItems = [], documents = [], analysis, readiness, capacity, dataLoading, onAddFinancingRequest, onAddFinancingRequestItems, onUpgrade, checkoutLoading, onNavigate }) {
   const [showForm, setShowForm] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -27,7 +27,7 @@ export default function FinancingPanel({ companyId, plan, deviseBase, transactio
     try {
       const lastRequest = requests[0] || null;
       const lastRequestItems = lastRequest ? requestItems.filter((i) => i.financing_request_id === lastRequest.id) : [];
-      await exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities, lastRequest, readiness, documents, lastRequestItems, liabilityPayments, capacity);
+      await exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities, lastRequest, readiness, documents, lastRequestItems, liabilityPayments, capacity, cashAccounts);
     } finally {
       setGenerating(false);
     }

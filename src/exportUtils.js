@@ -1,6 +1,6 @@
 import { computeCompteResultat, computeCashFlowHistorique, computeCashFlowPrevisionnel, computeEndettementGlobal } from "./analyseFinanciereUtils";
 import { computeDSCR } from "./financingUtils";
-import { liabilityCategoryLabel } from "./constants";
+import { liabilityCategoryLabel, cashAccountTypeLabel } from "./constants";
 
 // jsPDF utilise par défaut une police (Helvetica) qui ne sait pas afficher l'espace fine
 // insécable utilisée par Intl.NumberFormat("fr-FR") comme séparateur de milliers — elle se
@@ -78,7 +78,7 @@ export async function exportPdf(transactions, company, kpis) {
 // ---------- Pilier 3 : Dossier de financement (Premium) ----------
 // Document professionnel destiné à être partagé avec une banque ou un investisseur :
 // historique, indicateurs de fiabilité, score de santé, projection de trésorerie.
-export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = [], financingRequest = null, readiness = null, documents = [], requestItems = [], liabilityPayments = [], capacity = null) {
+export async function exportDossierFinancement(transactions, products, credits, company, analysis, assets = [], liabilities = [], financingRequest = null, readiness = null, documents = [], requestItems = [], liabilityPayments = [], capacity = null, cashAccounts = []) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
@@ -104,6 +104,15 @@ export async function exportDossierFinancement(transactions, products, credits, 
   const dettesFinancieresBase = liabilities.filter((l) => l.statut === "actif").reduce((s, l) => s + (Number(l.montant) - Number(l.montant_rembourse)), 0);
   const capitauxPropresBase = totalActifsBase - (dettesFournisseursBase + dettesFinancieresBase);
   const endettement = computeEndettementGlobal({ credits, liabilities, ca: compteResultat.ca, avgMonthlyNet: avgMonthlyNet || 0, capitauxPropres: capitauxPropresBase });
+  const tresorerieParCompte = (() => {
+    const byAccount = {};
+    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
+    transactions.forEach((t) => {
+      if (!t.account_id || !(t.account_id in byAccount)) return;
+      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
+    });
+    return cashAccounts.map((a) => ({ ...a, solde: byAccount[a.id] ?? 0 }));
+  })();
   const dscr = (financingRequest && avgMonthlyNet)
     ? computeDSCR({ avgMonthlyNet, liabilities, montantSouhaite: financingRequest.montant_souhaite, dureeMois: financingRequest.duree_mois })
     : null;
@@ -451,6 +460,22 @@ export async function exportDossierFinancement(transactions, products, credits, 
     doc.setTextColor(148, 163, 184);
     doc.text("Les capitaux propres sont ici un résidu comptable (actif − dettes), faute d'un suivi séparé des apports associés.", 14, curY);
     curY += 10;
+
+    if (tresorerieParCompte.length > 0) {
+      if (curY > 240) { doc.addPage(); curY = 20; }
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Répartition de la trésorerie par compte", 14, curY);
+      autoTable(doc, {
+        startY: curY + 4,
+        head: [["Compte", "Type", "Solde"]],
+        body: tresorerieParCompte.map((a) => [a.name, cashAccountTypeLabel(a.type), formatMontant(a.solde, devise)]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+      curY = doc.lastAutoTable.finalY + 12;
+    }
 
     if (assets.length > 0) {
       if (curY > 240) { doc.addPage(); curY = 20; }

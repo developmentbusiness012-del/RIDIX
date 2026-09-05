@@ -8,7 +8,7 @@ import { PremiumTeaser } from "./StockPanel";
 import { computeCompteResultat, computeCashFlowHistorique, computeCashFlowPrevisionnel, computeEndettementGlobal } from "../analyseFinanciereUtils";
 import { computeDSCR } from "../financingUtils";
 
-export default function AnalysisPanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], requests = [], capacity, dataLoading, onUpgrade, checkoutLoading, onNavigate }) {
+export default function AnalysisPanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], cashAccounts = [], requests = [], capacity, dataLoading, onUpgrade, checkoutLoading, onNavigate }) {
   const [periodeCR, setPeriodeCR] = useState(12);
   const [horizonCF, setHorizonCF] = useState(6);
 
@@ -26,6 +26,16 @@ export default function AnalysisPanel({ companyId, plan, deviseBase, transaction
     const capitauxPropres = totalActifs - totalPassifsDettes;
     return { tresorerie, valeurStock, creancesClients, immobilisations, totalActifs, dettesFournisseurs, dettesFinancieres, totalPassifsDettes, capitauxPropres };
   }, [transactions, products, credits, assets, liabilities]);
+
+  const tresorerieParCompte = useMemo(() => {
+    const byAccount = {};
+    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
+    transactions.forEach((t) => {
+      if (!t.account_id || !(t.account_id in byAccount)) return;
+      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
+    });
+    return cashAccounts.map((a) => ({ ...a, solde: byAccount[a.id] ?? 0 }));
+  }, [cashAccounts, transactions]);
 
   const cashFlowHisto = useMemo(() => computeCashFlowHistorique(transactions, liabilityPayments, liabilities, { months: 12 }), [transactions, liabilityPayments, liabilities]);
   const cashFlowPrevisionnel = useMemo(() => computeCashFlowPrevisionnel(transactions, liabilities, { monthsAhead: horizonCF }), [transactions, liabilities, horizonCF]);
@@ -130,6 +140,19 @@ export default function AnalysisPanel({ companyId, plan, deviseBase, transaction
             </tbody></table>
           </div>
         </div>
+        {tresorerieParCompte.length > 0 && (
+          <div className="mt-3 border border-slate-800 rounded-md bg-slate-900/60 overflow-hidden">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-slate-500 px-4 pt-3 pb-1">Trésorerie ({formatMontant(bilan.tresorerie, deviseBase)}) — où est votre argent</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 pb-3 pt-1">
+              {tresorerieParCompte.map((a) => (
+                <div key={a.id} className="text-xs">
+                  <p className="text-slate-500">{a.name}</p>
+                  <p className={`font-mono ${a.solde < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(a.solde, deviseBase)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="text-[11px] text-slate-600 mt-2">Les capitaux propres sont ici un résidu comptable (actif − dettes), faute d'un suivi séparé des apports associés. Détail des immobilisations et passifs financiers dans l'onglet Bilan.</p>
       </section>
 

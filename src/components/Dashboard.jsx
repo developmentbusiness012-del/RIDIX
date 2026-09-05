@@ -7,11 +7,12 @@ import {
   Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
   LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
   Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock, LineChart,
+  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock, LineChart, Landmark,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions } from "../constants";
+import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions, cashAccountTypeLabel, cashAccountTypeIcon } from "../constants";
 import TransactionForm from "./TransactionForm";
+import CashAccountForm from "./CashAccountForm";
 import ImportCsv from "./ImportCsv";
 import MessagesPanel from "./MessagesPanel";
 const StockPanel = lazy(() => import("./StockPanel"));
@@ -44,6 +45,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   const [companies, setCompanies] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [cashAccounts, setCashAccounts] = useState([]);
+  const [showCashAccountForm, setShowCashAccountForm] = useState(false);
   const [filterPeriode, setFilterPeriode] = useState("mois");
   const [filterType, setFilterType] = useState("tous");
   const [showForm, setShowForm] = useState(false);
@@ -157,6 +160,36 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       }
     })();
   }, [activeId]);
+
+  const refreshCashAccounts = useCallback(async () => {
+    if (!activeId) return;
+    const { data } = await supabase.from("cash_accounts").select("*").eq("company_id", activeId).eq("archived", false).order("created_at");
+    setCashAccounts(data || []);
+  }, [activeId]);
+
+  useEffect(() => { refreshCashAccounts(); }, [refreshCashAccounts]);
+
+  const addCashAccount = async ({ name, type, devise, solde_initial }) => {
+    const { data, error } = await supabase.from("cash_accounts").insert({ company_id: activeId, name, type, devise, solde_initial }).select().single();
+    if (!error && data) setCashAccounts((prev) => [...prev, data]);
+    return { data, error };
+  };
+
+  const archiveCashAccount = async (id) => {
+    const { error } = await supabase.from("cash_accounts").update({ archived: true }).eq("id", id);
+    if (!error) setCashAccounts((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  // Solde par compte = solde de départ + recettes - dépenses qui lui sont rattachées (en devise de référence).
+  const cashAccountBalances = useMemo(() => {
+    const byAccount = {};
+    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
+    transactions.forEach((t) => {
+      if (!t.account_id || !(t.account_id in byAccount)) return;
+      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
+    });
+    return byAccount;
+  }, [cashAccounts, transactions]);
 
   const refreshTransactions = useCallback(async () => {
     const { data } = await supabase
@@ -616,7 +649,45 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           <KpiCard label="Marge" value={`${kpis.marge.toFixed(1)} %`} icon={Percent} accent="border-l-indigo-400" />
         </div>
 
-        {/* ---------- Graphiques ---------- */}
+        {/* ---------- Où est votre argent ---------- */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-serif text-sm text-slate-300 flex items-center gap-1.5"><Landmark size={14} className="text-amber-400" /> Où est votre argent</h3>
+            {(isOwner || perms.canViewBilan) && (
+              <button onClick={() => setShowCashAccountForm(true)} className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-amber-200 border border-amber-700/50 rounded-full px-2.5 py-1">
+                <Plus size={11} /> Compte
+              </button>
+            )}
+          </div>
+          {cashAccounts.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">Aucun compte enregistré — ajoutez votre banque, votre mobile money ou votre caisse pour savoir où se trouve votre argent.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {cashAccounts.map((a) => {
+                const Icon = cashAccountTypeIcon(a.type);
+                const solde = cashAccountBalances[a.id] ?? 0;
+                return (
+                  <div key={a.id} className="border border-slate-800 rounded-md px-3 py-2.5 relative group">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-1">
+                      <Icon size={12} /> {cashAccountTypeLabel(a.type)}
+                    </div>
+                    <p className="text-sm text-slate-200 truncate">{a.name}</p>
+                    <p className={`font-mono text-base mt-0.5 ${solde < 0 ? "text-rose-400" : "text-slate-100"}`}>{formatMontant(solde, company.devise_base)}</p>
+                    {isOwner && (
+                      <button onClick={() => setDialog({ type: "archiveCashAccount", payload: a })}
+                        className="absolute top-2 right-2 text-slate-700 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!isOwner && cashAccounts.length > 0 && (
+            <p className="text-[11px] text-slate-600 mt-2">Soldes calculés à partir de vos propres écritures.</p>
+          )}
+        </div>
         <div className="grid lg:grid-cols-3 gap-4 mb-6">
           <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-md p-4">
             <h3 className="font-serif text-sm text-slate-300 mb-3">Évolution mensuelle</h3>
@@ -748,7 +819,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {activeTab === "bilan" && (isOwner || perms.canViewBilan) && (
           <Suspense fallback={<PanelLoading />}>
-            <BilanPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} transactions={transactions} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
+            <BilanPanel companyId={activeId} plan={plan} isOwner={isOwner} deviseBase={company.devise_base} transactions={transactions} cashAccounts={cashAccounts} onUpgrade={changePlan} checkoutLoading={checkoutLoading} />
           </Suspense>
         )}
 
@@ -757,7 +828,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             <AnalysisPanel
               companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
               products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments}
-              requests={finData.financingRequests} capacity={capacity} dataLoading={finDataLoading}
+              cashAccounts={cashAccounts} requests={finData.financingRequests} capacity={capacity} dataLoading={finDataLoading}
               onUpgrade={changePlan} checkoutLoading={checkoutLoading} onNavigate={setActiveTab}
             />
           </Suspense>
@@ -773,7 +844,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           <Suspense fallback={<PanelLoading />}>
             <IntelligencePanel
               companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
-              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments}
+              products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments} cashAccounts={cashAccounts}
               financingRequests={finData.financingRequests} financingRequestItems={finData.financingRequestItems} documents={finData.documents}
               analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
               onUpgrade={changePlan} checkoutLoading={checkoutLoading}
@@ -782,7 +853,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
               <div className="mt-8 pt-6 border-t border-slate-800">
                 <FinancingPanel
                   companyId={activeId} plan={plan} deviseBase={company.devise_base} transactions={transactions} company={company}
-                  products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments}
+                  products={finData.products} credits={finData.credits} assets={finData.assets} liabilities={finData.liabilities} liabilityPayments={finData.liabilityPayments} cashAccounts={cashAccounts}
                   requests={finData.financingRequests} requestItems={finData.financingRequestItems} documents={finData.documents}
                   analysis={analysis} readiness={readiness} capacity={capacity} dataLoading={finDataLoading}
                   onAddFinancingRequest={addFinancingRequest} onAddFinancingRequestItems={addFinancingRequestItems}
@@ -796,7 +867,13 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         {activeTab === "app" && <InstallAppTab />}
       </div>
 
-      {showForm && <TransactionForm deviseBase={company.devise_base} plan={plan} companyId={activeId} onClose={() => setShowForm(false)} onSubmit={addTransaction} />}
+      {showForm && (
+        <TransactionForm
+          deviseBase={company.devise_base} plan={plan} companyId={activeId}
+          cashAccounts={cashAccounts} onAddCashAccount={addCashAccount}
+          onClose={() => setShowForm(false)} onSubmit={addTransaction}
+        />
+      )}
       {showImport && <ImportCsv deviseBase={company.devise_base} onClose={() => setShowImport(false)} onImport={importTransactions} />}
       {showSettings && (
         <SettingsPanel
@@ -872,6 +949,19 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           onConfirm={confirmRemoveEmployee}
           onCancel={() => setDialog(null)}
         />
+      )}
+      {dialog?.type === "archiveCashAccount" && (
+        <ConfirmDialog
+          title="Archiver ce compte ?"
+          message={`"${dialog.payload.name}" ne sera plus proposé pour de nouvelles écritures. Son historique reste intact dans vos écritures existantes.`}
+          confirmLabel="Archiver"
+          danger
+          onConfirm={async () => { await archiveCashAccount(dialog.payload.id); setDialog(null); }}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+      {showCashAccountForm && (
+        <CashAccountForm deviseBase={company.devise_base} onClose={() => setShowCashAccountForm(false)} onSubmit={addCashAccount} />
       )}
     </div>
   );

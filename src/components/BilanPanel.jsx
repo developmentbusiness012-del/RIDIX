@@ -11,7 +11,7 @@ const ASSET_CATEGORIES = [
   { id: "autre", label: "Autre" },
 ];
 
-export default function BilanPanel({ companyId, plan, isOwner, deviseBase, transactions, onUpgrade, checkoutLoading }) {
+export default function BilanPanel({ companyId, plan, isOwner, deviseBase, transactions, cashAccounts = [], onUpgrade, checkoutLoading }) {
   const [assets, setAssets] = useState([]);
   const [liabilities, setLiabilities] = useState([]);
   const [products, setProducts] = useState([]);
@@ -51,6 +51,17 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
 
     return { tresorerie, valeurStock, creancesClients, immobilisations, totalActifs, dettesFournisseurs, passifsFinanciers, totalPassifs, patrimoineNet: totalActifs - totalPassifs };
   }, [transactions, products, credits, assets, liabilities]);
+
+  // Répartition de la trésorerie par compte (Bloc "Où est votre argent", synchronisé avec l'onglet Écriture).
+  const tresorerieParCompte = useMemo(() => {
+    const byAccount = {};
+    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
+    transactions.forEach((t) => {
+      if (!t.account_id || !(t.account_id in byAccount)) return;
+      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
+    });
+    return cashAccounts.map((a) => ({ ...a, solde: byAccount[a.id] ?? 0 }));
+  }, [cashAccounts, transactions]);
 
   const addAsset = async (payload) => {
     const { data, error } = await supabase.from("assets").insert({ company_id: companyId, ...payload }).select().single();
@@ -119,6 +130,20 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
           <p className="text-[11px] text-slate-500 mt-1">Actifs − passifs</p>
         </div>
       </div>
+
+      {tresorerieParCompte.length > 0 && (
+        <div className="mb-6 border border-slate-800 rounded-md bg-slate-900/60 overflow-hidden">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-slate-500 px-4 pt-3 pb-1">Trésorerie ({formatMontant(summary.tresorerie, deviseBase)}) — où est votre argent</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-4 pb-3 pt-1">
+            {tresorerieParCompte.map((a) => (
+              <div key={a.id} className="text-xs">
+                <p className="text-slate-500">{a.name}</p>
+                <p className={`font-mono ${a.solde < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(a.solde, deviseBase)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2 mb-4">
         <button onClick={() => setTab("actifs")}

@@ -15,7 +15,7 @@ const ALERT_STYLES = {
 // products/credits/assets/liabilities/financingRequests/documents/analysis/readiness sont désormais
 // calculés une seule fois dans Dashboard.jsx et partagés avec FinancingPanel — les deux onglets
 // affichent toujours exactement les mêmes chiffres (voir aussi src/analysisUtils.js et src/financingUtils.js).
-export default function IntelligencePanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], financingRequests = [], financingRequestItems = [], documents = [], analysis, readiness, capacity, dataLoading, onUpgrade, checkoutLoading }) {
+export default function IntelligencePanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], cashAccounts = [], financingRequests = [], financingRequestItems = [], documents = [], analysis, readiness, capacity, dataLoading, onUpgrade, checkoutLoading }) {
   const [recentAlerts, setRecentAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
 
@@ -61,7 +61,7 @@ export default function IntelligencePanel({ companyId, plan, deviseBase, transac
           onClick={() => {
             const lastRequest = financingRequests[0] || null;
             const lastRequestItems = lastRequest ? financingRequestItems.filter((i) => i.financing_request_id === lastRequest.id) : [];
-            exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities, lastRequest, readiness, documents, lastRequestItems, liabilityPayments, capacity);
+            exportDossierFinancement(transactions, products, credits, company, analysis, assets, liabilities, lastRequest, readiness, documents, lastRequestItems, liabilityPayments, capacity, cashAccounts);
           }}
           className="flex items-center gap-1.5 bg-slate-100 hover:bg-white text-slate-900 font-medium text-sm rounded-md px-3 py-2 shrink-0"
         >

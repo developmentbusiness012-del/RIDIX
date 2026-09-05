@@ -1,4 +1,4 @@
-import { Store, Package, Ship, Layers } from "lucide-react";
+import { Store, Package, Ship, Layers, Landmark, Smartphone, Wallet, HelpCircle } from "lucide-react";
 
 export const DEVISES = ["XAF", "EUR", "USD", "GBP", "CNY", "NGN"];
 
@@ -43,6 +43,19 @@ export const CATEGORIE_LIGNE = {
   "Frais bancaires / change": "charges_financieres",
   "Autre dépense": "charges_exploitation",
 };
+
+export const CASH_ACCOUNT_TYPES = [
+  { id: "banque", label: "Compte bancaire", icon: Landmark },
+  { id: "mobile_money", label: "Mobile Money", icon: Smartphone },
+  { id: "caisse", label: "Caisse (espèces)", icon: Wallet },
+  { id: "autre", label: "Autre", icon: HelpCircle },
+];
+export function cashAccountTypeLabel(id) {
+  return CASH_ACCOUNT_TYPES.find((t) => t.id === id)?.label || id;
+}
+export function cashAccountTypeIcon(id) {
+  return CASH_ACCOUNT_TYPES.find((t) => t.id === id)?.icon || HelpCircle;
+}
 
 export const LIABILITY_CATEGORIES = [
   { id: "pret_bancaire", label: "Prêt bancaire" },
