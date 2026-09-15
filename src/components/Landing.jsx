@@ -12,6 +12,29 @@ import NotificationOptIn from "./NotificationOptIn";
 import { GrowthIllustration } from "./LandingIllustrations";
 import { Reveal, LiveCompanyCounter } from "./LandingMotion";
 import { useState } from "react";
+import dashboardMockupPhoto from "../assets/landing/dashboard-mockup.jpg";
+import entrepreneurConfiantPhoto from "../assets/landing/entrepreneur-confiant.jpg";
+import avantRegistrePhoto from "../assets/landing/avant-registre-manuel.jpg";
+
+// Carte photo avec effet 3D (perspective + légère inclinaison qui se redresse au survol),
+// même technique que le mockup téléphone du hero, réutilisée pour les photos réelles.
+function TiltCard3D({ src, alt, className = "", tilt = { rotateY: -8, rotateX: 4 }, delay = 0 }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30, ...tilt, scale: 0.94 }}
+      whileInView={{ opacity: 1, y: 0, ...tilt, scale: 1 }}
+      whileHover={{ rotateY: 0, rotateX: 0, scale: 1.02 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.7, delay, ease: "easeOut" }}
+      style={{ perspective: 1200, transformStyle: "preserve-3d" }}
+      className={`relative ${className}`}
+    >
+      <div className="rounded-2xl overflow-hidden border border-ink/10 shadow-2xl shadow-ink/20 bg-ink">
+        <img src={src} alt={alt} className="w-full h-full object-cover block" loading="lazy" />
+      </div>
+    </motion.div>
+  );
+}
 
 const FEATURES = [
   { icon: Gauge, title: "Santé financière en un coup d'œil", desc: "Score de préparation au financement et alertes automatiques : trésorerie, créances, marge, dettes.", premium: true },
@@ -199,6 +222,20 @@ export default function Landing({ onEnter }) {
         </div>
       </Reveal>
 
+      {/* ---------- RIDIX en action ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <Reveal className="text-center mb-10">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">L'application</span>
+          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3">RIDIX, ordinateur ou téléphone en main</h2>
+        </Reveal>
+        <TiltCard3D
+          src={dashboardMockupPhoto}
+          alt="Tableau de bord RIDIX affiché sur ordinateur et téléphone"
+          className="max-w-4xl mx-auto"
+          tilt={{ rotateY: -6, rotateX: 3 }}
+        />
+      </section>
+
       {/* ---------- Ancré dans le commerce africain ---------- */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-20 text-center">
         <Reveal>
@@ -216,6 +253,33 @@ export default function Landing({ onEnter }) {
             dossier parle déjà leur langage : ratios, cash-flow, capacité de remboursement.
           </p>
         </Reveal>
+      </section>
+
+      {/* ---------- Avant / Après RIDIX ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <Reveal className="text-center mb-12">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">La transformation</span>
+          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3">Du cahier au dossier bancable</h2>
+        </Reveal>
+        <div className="grid sm:grid-cols-2 gap-8 sm:gap-10 items-center">
+          <div>
+            <TiltCard3D
+              src={avantRegistrePhoto}
+              alt="Commerçante débordée par ses cahiers et calculatrice, avant RIDIX"
+              tilt={{ rotateY: 6, rotateX: 3 }}
+            />
+            <p className="text-center mt-4 font-mono text-[11px] uppercase tracking-[0.15em] text-ink/40">Avant — cahiers, calculette, stress</p>
+          </div>
+          <div>
+            <TiltCard3D
+              src={entrepreneurConfiantPhoto}
+              alt="Entrepreneur confiant, chiffres à jour grâce à RIDIX"
+              tilt={{ rotateY: -6, rotateX: 3 }}
+              delay={0.15}
+            />
+            <p className="text-center mt-4 font-mono text-[11px] uppercase tracking-[0.15em] text-forest">Avec RIDIX — chiffres à jour, prêt à présenter</p>
+          </div>
+        </div>
       </section>
 
       {/* ---------- Fonctionnalités ---------- */}
