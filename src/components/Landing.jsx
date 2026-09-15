@@ -11,7 +11,7 @@ import WhatsAppFloatingCTA from "./WhatsAppFloatingCTA";
 import LegalDocsModal from "./LegalDocsModal";
 import NotificationOptIn from "./NotificationOptIn";
 import { GrowthIllustration } from "./LandingIllustrations";
-import { Reveal, LiveCompanyCounter } from "./LandingMotion";
+import { Reveal } from "./LandingMotion";
 import { useState } from "react";
 import dashboardMockupPhoto from "../assets/landing/dashboard-mockup.jpg";
 import entrepreneurConfiantPhoto from "../assets/landing/entrepreneur-confiant.jpg";
@@ -142,10 +142,6 @@ export default function Landing({ onEnter }) {
 
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, delay: 0.45 }}
               className="flex items-center gap-3 text-sm text-ink/50">
-              <span className="font-mono">
-                <LiveCompanyCounter className="font-semibold text-ink text-base" /> entreprises créées sur RIDIX
-              </span>
-              <span className="w-1 h-1 rounded-full bg-ink/20" />
               <span>Gratuit pour démarrer</span>
             </motion.div>
           </div>
@@ -488,7 +484,7 @@ export default function Landing({ onEnter }) {
           <Reveal>
             <GrowthIllustration className="w-44 h-auto mx-auto mb-6" />
             <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-white mb-4">Prêt à devenir finançable ?</h2>
-            <p className="text-white/50 text-[15px] mb-8">Rejoignez les <LiveCompanyCounter className="text-gold-bright font-semibold" /> entreprises qui pilotent déjà leurs finances et préparent leur financement sur RIDIX — gratuit, sans engagement, en moins d'une minute.</p>
+            <p className="text-white/50 text-[15px] mb-8">Pilotez vos finances et préparez votre financement sur RIDIX — gratuit, sans engagement, en moins d'une minute.</p>
             <button onClick={() => onEnter("signup")}
               className="group inline-flex items-center gap-2 bg-gradient-to-r from-gold to-gold-bright text-ink font-bold rounded-full px-8 py-4 text-[15px] shadow-2xl shadow-gold/20 hover:-translate-y-1 transition-all">
               Créer mon compte gratuitement
