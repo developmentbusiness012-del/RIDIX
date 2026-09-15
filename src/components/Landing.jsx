@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
 import {
   Ship, Package, Store, Wallet, TrendingUp, LineChart, Landmark,
-  UploadCloud, Users, MessageCircle, Building2, Check, ArrowRight, ShieldCheck,
+  UploadCloud, Users, Building2, Check, ArrowRight, ShieldCheck,
   Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout, Gauge, Scale, FolderLock,
 } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
 import InstallFloatingCTA from "./InstallFloatingCTA";
+import WhatsAppFloatingCTA from "./WhatsAppFloatingCTA";
 import LegalDocsModal from "./LegalDocsModal";
 import NotificationOptIn from "./NotificationOptIn";
 import { GrowthIllustration } from "./LandingIllustrations";
@@ -15,8 +16,6 @@ import { useState } from "react";
 import dashboardMockupPhoto from "../assets/landing/dashboard-mockup.jpg";
 import entrepreneurConfiantPhoto from "../assets/landing/entrepreneur-confiant.jpg";
 import avantRegistrePhoto from "../assets/landing/avant-registre-manuel.jpg";
-
-const WHATSAPP_CONTACT_URL = "https://wa.me/message/FYWJGBC3C22FH1?src=qr";
 
 // Carte photo avec effet 3D (perspective + légère inclinaison qui se redresse au survol),
 // même technique que le mockup téléphone du hero, réutilisée pour les photos réelles.
@@ -495,15 +494,6 @@ export default function Landing({ onEnter }) {
               Créer mon compte gratuitement
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
-
-            <div className="mt-5">
-              <a href={WHATSAPP_CONTACT_URL} target="_blank" rel="noopener noreferrer"
-                className="group inline-flex items-center gap-2 text-white/70 hover:text-white font-medium rounded-full px-6 py-3 text-[14px] border border-white/15 hover:border-emerald-400/50 hover:bg-emerald-400/5 transition-all">
-                <MessageCircle size={17} className="text-emerald-400" />
-                Contacter le service client pour un accompagnement personnalisé
-              </a>
-              <p className="text-white/30 text-xs mt-2">Un conseiller vous aide à adapter RIDIX à votre activité, directement sur WhatsApp.</p>
-            </div>
           </Reveal>
         </div>
       </section>
@@ -519,6 +509,7 @@ export default function Landing({ onEnter }) {
       {showLegal && <LegalDocsModal initialTab={showLegal} onClose={() => setShowLegal(null)} />}
 
       <InstallFloatingCTA />
+      <WhatsAppFloatingCTA />
     </div>
   );
 }
