@@ -16,6 +16,8 @@ import dashboardMockupPhoto from "../assets/landing/dashboard-mockup.jpg";
 import entrepreneurConfiantPhoto from "../assets/landing/entrepreneur-confiant.jpg";
 import avantRegistrePhoto from "../assets/landing/avant-registre-manuel.jpg";
 
+const WHATSAPP_CONTACT_URL = "https://wa.me/message/FYWJGBC3C22FH1?src=qr";
+
 // Carte photo avec effet 3D (perspective + légère inclinaison qui se redresse au survol),
 // même technique que le mockup téléphone du hero, réutilisée pour les photos réelles.
 function TiltCard3D({ src, alt, className = "", tilt = { rotateY: -8, rotateX: 4 }, delay = 0 }) {
@@ -493,6 +495,15 @@ export default function Landing({ onEnter }) {
               Créer mon compte gratuitement
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
+
+            <div className="mt-5">
+              <a href={WHATSAPP_CONTACT_URL} target="_blank" rel="noopener noreferrer"
+                className="group inline-flex items-center gap-2 text-white/70 hover:text-white font-medium rounded-full px-6 py-3 text-[14px] border border-white/15 hover:border-emerald-400/50 hover:bg-emerald-400/5 transition-all">
+                <MessageCircle size={17} className="text-emerald-400" />
+                Contacter le service client pour un accompagnement personnalisé
+              </a>
+              <p className="text-white/30 text-xs mt-2">Un conseiller vous aide à adapter RIDIX à votre activité, directement sur WhatsApp.</p>
+            </div>
           </Reveal>
         </div>
       </section>
