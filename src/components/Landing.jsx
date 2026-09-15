@@ -16,6 +16,7 @@ import { useState } from "react";
 import dashboardMockupPhoto from "../assets/landing/dashboard-mockup.jpg";
 import entrepreneurConfiantPhoto from "../assets/landing/entrepreneur-confiant.jpg";
 import avantRegistrePhoto from "../assets/landing/avant-registre-manuel.jpg";
+import ridixShowcaseCollage from "../assets/landing/ridix-showcase-collage.jpg";
 
 // Carte photo avec effet 3D (perspective + légère inclinaison qui se redresse au survol),
 // même technique que le mockup téléphone du hero, réutilisée pour les photos réelles.
@@ -412,6 +413,19 @@ export default function Landing({ onEnter }) {
               <span className="text-ink font-medium">Nouveau —</span> ouvrez la fiche de performance de n'importe quel employé :
               recettes, dépenses, solde net, marge et historique complet.
             </p>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ---------- Vision RIDIX (collage) ---------- */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <Reveal className="text-center mb-10">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">En un coup d'œil</span>
+          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3">RIDIX, votre allié pour piloter et grandir</h2>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <div className="rounded-2xl overflow-hidden border border-ink/10 shadow-2xl shadow-ink/10">
+            <img src={ridixShowcaseCollage} alt="RIDIX Finance — tableau de bord, gestion d'équipe, rentabilité et préparation au financement" className="w-full h-auto block" loading="lazy" />
           </div>
         </Reveal>
       </section>
