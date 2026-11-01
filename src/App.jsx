@@ -3,12 +3,12 @@ import { supabase } from "./supabaseClient";
 import Landing from "./components/Landing";
 import Auth from "./components/Auth";
 import Pricing from "./components/Pricing";
-import Dashboard from "./components/Dashboard";
 import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { pollPayment } from "./payments";
+import { pollPayment, verifyPayment } from "./payments";
 import { cacheGet, cacheSet } from "./offlineQueue";
 
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
 
 function PaymentReturnOverlay({ onResolved }) {
   const [state, setState] = useState("checking"); // checking | completed | failed | timeout
@@ -159,6 +159,25 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, [resolveProfile]);
 
+
+  // Rattrapage : si l'utilisateur a payé puis fermé le navigateur avant le retour sur l'app,
+  // un panier reste "en attente". On le fait vérifier une fois au démarrage.
+  useEffect(() => {
+    if (!session || !profile || profile.role !== "owner" || profile.plan === "premium" || showPaymentReturn) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.from("payment_carts").select("id").eq("status", "waiting_payment").limit(1);
+        if (!data || data.length === 0) return;
+        const res = await verifyPayment();
+        if (!cancelled && res?.status === "completed") resolveProfile(session.user.id);
+      } catch {
+        /* silencieux : sera retenté au prochain démarrage */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user?.id, profile?.role, profile?.plan, showPaymentReturn, resolveProfile]);
+
   if (loading) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">Chargement…</div>;
   }
@@ -213,7 +232,9 @@ export default function App() {
   }
   return (
     <>
-      <Dashboard session={session} role={profile.role} plan={profile.plan} premiumExpiresAt={profile.premiumExpiresAt} isAdmin={profile.isAdmin} onOpenAdmin={() => setAdminView(true)} />
+      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400"><Loader2 className="animate-spin" size={18} /></div>}>
+        <Dashboard session={session} role={profile.role} plan={profile.plan} premiumExpiresAt={profile.premiumExpiresAt} isAdmin={profile.isAdmin} onOpenAdmin={() => setAdminView(true)} />
+      </Suspense>
       {paymentOverlay}
     </>
   );
