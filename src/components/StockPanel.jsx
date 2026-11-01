@@ -1,20 +1,25 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Boxes, Plus, Trash2, AlertTriangle, X, Lock, Loader2, Minus, History, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
+import { memGet, memSet } from "../dataCache";
 import { ConfirmDialog } from "./Dialogs";
 
 export default function StockPanel({ companyId, plan, isOwner, canManage = true, deviseBase, onUpgrade, checkoutLoading }) {
-  const [products, setProducts] = useState([]);
-  const [movements, setMovements] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Ouverture instantanée : on montre les dernières données connues, puis on les rafraîchit sans écran de chargement.
+  const cacheKey = `stock:${companyId}`;
+  const [products, setProducts] = useState(() => memGet(cacheKey)?.products || []);
+  const [movements, setMovements] = useState(() => memGet(cacheKey)?.movements || []);
+  const [loading, setLoading] = useState(() => !memGet(cacheKey));
   const [showForm, setShowForm] = useState(false);
+  const loadedFor = useRef(memGet(cacheKey) ? companyId : null);
 
   useEffect(() => {
     if (plan !== "premium" || !companyId) { setLoading(false); return; }
     (async () => {
-      setLoading(true);
-      const [{ data: prods }, { data: moves }] = await Promise.all([
+      const hit = memGet(cacheKey);
+      if (hit) { setProducts(hit.products); setMovements(hit.movements); setLoading(false); loadedFor.current = companyId; } else { setLoading(true); }
+      const [{ data: prods, error: e1 }, { data: moves, error: e2 }] = await Promise.all([
         supabase.from("products").select("*").eq("company_id", companyId).order("name"),
         supabase
           .from("transactions")
@@ -24,11 +29,19 @@ export default function StockPanel({ companyId, plan, isOwner, canManage = true,
           .order("date", { ascending: false })
           .limit(8),
       ]);
+      if (e1 || e2) { setLoading(false); return; } // hors ligne : on garde l'affichage actuel
+      loadedFor.current = companyId;
       setProducts(prods || []);
       setMovements(moves || []);
+      memSet(cacheKey, { products: prods || [], movements: moves || [] });
       setLoading(false);
     })();
   }, [companyId, plan]);
+
+  // Les modifications faites dans l'onglet (ajout, ajustement, suppression) restent dans le cache.
+  useEffect(() => {
+    if (loadedFor.current === companyId) memSet(cacheKey, { products, movements });
+  }, [products, movements]);
 
   const lowStock = useMemo(() => products.filter((p) => Number(p.quantity) <= Number(p.alert_threshold)), [products]);
 

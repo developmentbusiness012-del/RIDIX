@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, useTransition, lazy, Suspense } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -15,13 +15,31 @@ import TransactionForm from "./TransactionForm";
 import CashAccountForm from "./CashAccountForm";
 import ImportCsv from "./ImportCsv";
 import MessagesPanel from "./MessagesPanel";
-const StockPanel = lazy(() => import("./StockPanel"));
-const CreditsPanel = lazy(() => import("./CreditsPanel"));
-const IntelligencePanel = lazy(() => import("./IntelligencePanel"));
-const BilanPanel = lazy(() => import("./BilanPanel"));
-const FinancingPanel = lazy(() => import("./FinancingPanel"));
-const AnalysisPanel = lazy(() => import("./AnalysisPanel"));
-const DataRoomPanel = lazy(() => import("./DataRoomPanel"));
+const panelLoaders = {
+  stock: () => import("./StockPanel"),
+  credits: () => import("./CreditsPanel"),
+  intelligence: () => import("./IntelligencePanel"),
+  bilan: () => import("./BilanPanel"),
+  financing: () => import("./FinancingPanel"),
+  analyse: () => import("./AnalysisPanel"),
+  dataroom: () => import("./DataRoomPanel"),
+};
+const StockPanel = lazy(panelLoaders.stock);
+const CreditsPanel = lazy(panelLoaders.credits);
+const IntelligencePanel = lazy(panelLoaders.intelligence);
+const BilanPanel = lazy(panelLoaders.bilan);
+const FinancingPanel = lazy(panelLoaders.financing);
+const AnalysisPanel = lazy(panelLoaders.analyse);
+const DataRoomPanel = lazy(panelLoaders.dataroom);
+
+// Télécharge à l'avance le code d'un onglet (au survol / au toucher, puis en temps libre) :
+// le clic suivant s'ouvre sans attente.
+const prefetchPanel = (id) => {
+  try {
+    panelLoaders[id]?.();
+    if (id === "intelligence") panelLoaders.financing();
+  } catch { /* ignoré */ }
+};
 import InstallAppTab from "./InstallAppTab";
 import InstallFloatingCTA from "./InstallFloatingCTA";
 import UserGuide from "./UserGuide";
@@ -34,16 +52,21 @@ import { exportExcel, exportPdf } from "../exportUtils";
 import { computeAnalysis } from "../analysisUtils";
 import { computeCapacity, computeReadiness } from "../financingUtils";
 import { startPremiumCheckout } from "../payments";
-import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet } from "../offlineQueue";
+import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet, patchTxCache } from "../offlineQueue";
+import { memGet, memSet } from "../dataCache";
 
 const monthKey = (d) => d.slice(0, 7);
 
 export default function Dashboard({ session, role, plan: initialPlan, premiumExpiresAt, isAdmin, onOpenAdmin }) {
   const isOwner = role === "owner";
   const perms = getPermissions(role, isOwner);
-  const [loading, setLoading] = useState(true);
-  const [companies, setCompanies] = useState([]);
-  const [activeId, setActiveId] = useState(null);
+  // Démarrage instantané : si cet appareil connaît déjà les entreprises de l'utilisateur, on les affiche
+  // immédiatement (le réseau ne fait ensuite que rafraîchir en arrière-plan). Clé par utilisateur.
+  const companiesCacheKey = `companies_${session.user.id}`;
+  const [bootCompanies] = useState(() => cacheGet(companiesCacheKey));
+  const [loading, setLoading] = useState(!bootCompanies);
+  const [companies, setCompanies] = useState(bootCompanies || []);
+  const [activeId, setActiveId] = useState(bootCompanies?.[0]?.id ?? null);
   const [transactions, setTransactions] = useState([]);
   const [cashAccounts, setCashAccounts] = useState([]);
   const [showCashAccountForm, setShowCashAccountForm] = useState(false);
@@ -59,6 +82,15 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   const [showMessages, setShowMessages] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeTab, setActiveTab] = useState("bord");
+  const [pendingTab, setPendingTab] = useState(null);
+  const [, startTabTransition] = useTransition();
+  // Le nouvel onglet est surligné tout de suite ; le contenu bascule dès que son code est prêt,
+  // sans jamais remplacer l'écran actuel par un écran de chargement.
+  const goTab = useCallback((id) => {
+    setPendingTab(id);
+    startTabTransition(() => setActiveTab(id));
+  }, []);
+  useEffect(() => { setPendingTab(null); }, [activeTab]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
 
@@ -66,7 +98,22 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   const isExpiringSoon = plan === "premium" && daysLeft !== null && daysLeft <= 5 && daysLeft >= 0;
   const isExpired = daysLeft !== null && daysLeft < 0 && (plan === "premium" || plan === "freemium");
 
+  useEffect(() => { setPlan(initialPlan); }, [initialPlan]);
+
   const company = companies.find((c) => c.id === activeId);
+
+  // Préchargement en temps libre des onglets accessibles (sauf connexion lente / économie de données).
+  useEffect(() => {
+    const conn = navigator.connection;
+    if (conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || ""))) return;
+    const run = () => ["bilan", "dataroom", "stock", "credits", "analyse", "intelligence"].forEach(prefetchPanel);
+    if ("requestIdleCallback" in window) {
+      const h = window.requestIdleCallback(run, { timeout: 5000 });
+      return () => window.cancelIdleCallback?.(h);
+    }
+    const h = setTimeout(run, 3000);
+    return () => clearTimeout(h);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -87,6 +134,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     setSyncing(true);
     const { syncedLocalIds, syncedRows } = await syncPendingForCompany(activeId, supabase);
     if (syncedLocalIds.length > 0) {
+      patchTxCache(activeId, (list) => [...syncedRows, ...list.filter((t) => !syncedRows.some((r) => r.id === t.id))]);
       setTransactions((prev) => [
         ...syncedRows,
         ...prev.filter((t) => !(t._pending && syncedLocalIds.includes(t._localId))),
@@ -117,22 +165,22 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         const { data: comps, error } = await supabase.from("companies").select("*").order("created_at");
         if (!error && comps) {
           setCompanies(comps);
-          setActiveId(comps[0]?.id ?? null);
-          cacheSet("companies", comps);
+          setActiveId((prev) => (prev && comps.some((c) => c.id === prev) ? prev : comps[0]?.id ?? null));
+          cacheSet(companiesCacheKey, comps);
         } else {
           throw error || new Error("empty");
         }
       } catch {
-        // Hors ligne ou erreur réseau : on retombe sur la dernière liste connue.
-        const cached = cacheGet("companies");
+        // Hors ligne ou erreur réseau : on garde (ou on retombe sur) la dernière liste connue.
+        const cached = cacheGet(companiesCacheKey);
         if (cached) {
-          setCompanies(cached);
-          setActiveId(cached[0]?.id ?? null);
+          setCompanies((prev) => (prev.length ? prev : cached));
+          setActiveId((prev) => prev ?? cached[0]?.id ?? null);
         }
       }
       setLoading(false);
     })();
-  }, []);
+  }, [companiesCacheKey]);
 
   useEffect(() => {
     if (!isOwner || !activeId) { setEmployees([]); return; }
@@ -144,6 +192,11 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
   useEffect(() => {
     if (!activeId) return;
+    let cancelled = false;
+    // 1) affichage immédiat depuis la copie locale (jamais les données d'une autre entreprise)
+    const cached = cacheGet(`tx_${activeId}`);
+    setTransactions([...getPending(activeId), ...(cached || [])]);
+    // 2) rafraîchissement réseau en arrière-plan
     (async () => {
       try {
         const { data, error } = await supabase
@@ -152,32 +205,51 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           .eq("company_id", activeId)
           .order("date", { ascending: false });
         if (error) throw error;
+        if (cancelled) return;
         cacheSet(`tx_${activeId}`, data || []);
-        setTransactions([...getPending(activeId), ...(data || [])]);
+        const fetchedIds = new Set((data || []).map((t) => t.id));
+        // On conserve les écritures locales pas encore confirmées (en attente ou en cours d'envoi).
+        setTransactions((prev) => [
+          ...getPending(activeId),
+          ...prev.filter((t) => t._optimistic && !fetchedIds.has(t.id)),
+          ...(data || []),
+        ]);
       } catch {
-        const cached = cacheGet(`tx_${activeId}`) || [];
-        setTransactions([...getPending(activeId), ...cached]);
+        /* hors ligne : on garde l'affichage issu de la copie locale */
       }
     })();
+    return () => { cancelled = true; };
   }, [activeId]);
 
   const refreshCashAccounts = useCallback(async () => {
     if (!activeId) return;
-    const { data } = await supabase.from("cash_accounts").select("*").eq("company_id", activeId).eq("archived", false).order("created_at");
+    const { data, error } = await supabase.from("cash_accounts").select("*").eq("company_id", activeId).eq("archived", false).order("created_at");
+    if (error) return; // hors ligne : on garde ce qui est affiché
     setCashAccounts(data || []);
+    cacheSet(`cash_${activeId}`, data || []);
   }, [activeId]);
 
-  useEffect(() => { refreshCashAccounts(); }, [refreshCashAccounts]);
+  useEffect(() => {
+    if (!activeId) return;
+    setCashAccounts(cacheGet(`cash_${activeId}`) || []);
+    refreshCashAccounts();
+  }, [activeId, refreshCashAccounts]);
 
   const addCashAccount = async ({ name, type, devise, solde_initial }) => {
     const { data, error } = await supabase.from("cash_accounts").insert({ company_id: activeId, name, type, devise, solde_initial }).select().single();
-    if (!error && data) setCashAccounts((prev) => [...prev, data]);
+    if (!error && data) {
+      setCashAccounts((prev) => [...prev, data]);
+      cacheSet(`cash_${activeId}`, [...(cacheGet(`cash_${activeId}`) || []), data]);
+    }
     return { data, error };
   };
 
   const archiveCashAccount = async (id) => {
     const { error } = await supabase.from("cash_accounts").update({ archived: true }).eq("id", id);
-    if (!error) setCashAccounts((prev) => prev.filter((a) => a.id !== id));
+    if (!error) {
+      setCashAccounts((prev) => prev.filter((a) => a.id !== id));
+      cacheSet(`cash_${activeId}`, (cacheGet(`cash_${activeId}`) || []).filter((a) => a.id !== id));
+    }
   };
 
   // Solde par compte = solde de départ + recettes - dépenses qui lui sont rattachées (en devise de référence).
@@ -198,7 +270,12 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       .eq("company_id", activeId)
       .order("date", { ascending: false });
     cacheSet(`tx_${activeId}`, data || []);
-    setTransactions([...getPending(activeId), ...(data || [])]);
+    const fetchedIds = new Set((data || []).map((t) => t.id));
+    setTransactions((prev) => [
+      ...getPending(activeId),
+      ...prev.filter((t) => t._optimistic && !fetchedIds.has(t.id)),
+      ...(data || []),
+    ]);
   }, [activeId]);
 
   // Données financières partagées entre les onglets Intelligence et Financement (Bilan/Data Room
@@ -210,8 +287,11 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
   const refreshFinData = useCallback(async () => {
     if (!activeId || plan !== "premium") { setFinDataLoading(false); return; }
-    setFinDataLoading(true);
-    const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: liabPay }, { data: finReqs }, { data: finReqItems }, { data: docs }] = await Promise.all([
+    // Si cette entreprise a déjà été chargée, on affiche tout de suite ce qu'on a (aucun écran de
+    // chargement) et on rafraîchit en arrière-plan.
+    const hit = memGet(`fin:${activeId}`);
+    if (hit) { setFinData(hit); setFinDataLoading(false); } else { setFinDataLoading(true); }
+    const results = await Promise.all([
       supabase.from("products").select("*").eq("company_id", activeId),
       supabase.from("credits").select("*").eq("company_id", activeId),
       supabase.from("assets").select("*").eq("company_id", activeId),
@@ -221,7 +301,11 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       supabase.from("financing_request_items").select("*").eq("company_id", activeId),
       supabase.from("documents").select("*").eq("company_id", activeId).order("created_at", { ascending: false }),
     ]);
-    setFinData({ products: prods || [], credits: cred || [], assets: ast || [], liabilities: liab || [], liabilityPayments: liabPay || [], financingRequests: finReqs || [], financingRequestItems: finReqItems || [], documents: docs || [] });
+    if (results.some((r) => r.error)) { setFinDataLoading(false); return; } // hors ligne : on garde l'affichage actuel
+    const [{ data: prods }, { data: cred }, { data: ast }, { data: liab }, { data: liabPay }, { data: finReqs }, { data: finReqItems }, { data: docs }] = results;
+    const next = { products: prods || [], credits: cred || [], assets: ast || [], liabilities: liab || [], liabilityPayments: liabPay || [], financingRequests: finReqs || [], financingRequestItems: finReqItems || [], documents: docs || [] };
+    memSet(`fin:${activeId}`, next);
+    setFinData(next);
     setFinDataLoading(false);
   }, [activeId, plan]);
 
@@ -341,25 +425,47 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     if (!error) setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, role: newRole } : e)));
   };
 
+  const isNetworkError = (e) => !navigator.onLine || /failed to fetch|network|load failed|timeout/i.test(String(e?.message || e || ""));
+
+  // Enregistrement instantané : l'écriture apparaît et le formulaire se ferme immédiatement ;
+  // l'envoi au serveur se fait en arrière-plan. L'identifiant est généré ici, donc un nouvel essai
+  // (coupure réseau, file hors ligne) ne peut jamais créer de doublon.
   const addTransaction = async (tx) => {
-    if (!navigator.onLine) {
-      const entry = addPending(activeId, tx);
+    const id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : null;
+    if (!navigator.onLine || !id) {
+      const entry = addPending(activeId, tx, id);
       setTransactions((prev) => [entry, ...prev]);
       setShowForm(false);
       return;
     }
-    try {
-      const { data, error } = await supabase.from("transactions").insert({ ...tx, company_id: activeId }).select().single();
-      if (!error && data) {
-        setTransactions((prev) => [data, ...prev]);
-        setShowForm(false);
+    const companyId = activeId;
+    const optimistic = { ...tx, id, company_id: companyId, created_by: session.user.id, created_at: new Date().toISOString(), _optimistic: true };
+    setTransactions((prev) => [optimistic, ...prev]);
+    setShowForm(false);
+
+    (async () => {
+      let data = null;
+      let error = null;
+      try {
+        ({ data, error } = await supabase.from("transactions").insert({ ...tx, id, company_id: companyId }).select().single());
+      } catch (e) {
+        error = e;
       }
-    } catch {
-      // Le réseau a coupé au moment de l'envoi : on ne perd pas l'écriture, on la met en attente.
-      const entry = addPending(activeId, tx);
-      setTransactions((prev) => [entry, ...prev]);
-      setShowForm(false);
-    }
+      if (!error && data) {
+        setTransactions((prev) => prev.map((t) => (t.id === id ? data : t)));
+        patchTxCache(companyId, (list) => [data, ...list.filter((t) => t.id !== id)]);
+        return;
+      }
+      if (error && isNetworkError(error)) {
+        // Réseau coupé en cours d'envoi : on ne perd rien, l'écriture passe en file d'attente (même identifiant).
+        const entry = addPending(companyId, tx, id);
+        setTransactions((prev) => prev.map((t) => (t.id === id ? entry : t)));
+        return;
+      }
+      // Refus du serveur : on retire la ligne affichée et on explique pourquoi.
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      setDialog({ type: "txError", payload: error?.message });
+    })();
   };
 
   const importTransactions = async (rows) => {
@@ -372,13 +478,22 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   };
 
   const removeTransaction = async (t) => {
+    if (t._optimistic) return; // envoi en cours (quelques instants) : on évite une suppression qui croiserait l'enregistrement
     if (t._pending) {
       removePending(activeId, t._localId);
       setTransactions((prev) => prev.filter((x) => x.id !== t.id));
       return;
     }
+    // Suppression instantanée à l'écran ; si le serveur refuse, la ligne revient.
+    const snapshot = transactions;
+    setTransactions((prev) => prev.filter((x) => x.id !== t.id));
     const { error } = await supabase.from("transactions").delete().eq("id", t.id);
-    if (!error) setTransactions((prev) => prev.filter((x) => x.id !== t.id));
+    if (error) {
+      setTransactions(snapshot);
+      setDialog({ type: "txError", payload: "La suppression n'a pas pu être enregistrée. Réessayez." });
+    } else {
+      patchTxCache(activeId, (list) => list.filter((x) => x.id !== t.id));
+    }
   };
 
   // ---------- Filtrage ----------
@@ -531,8 +646,9 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
             { id: "app", label: "App", icon: Smartphone, locked: false },
           ].map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${activeTab === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+            <button key={tab.id} onClick={() => goTab(tab.id)}
+              onPointerEnter={() => prefetchPanel(tab.id)} onTouchStart={() => prefetchPanel(tab.id)}
+              className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${(pendingTab ?? activeTab) === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
               {tab.icon && <tab.icon size={14} />}
               {tab.label}
               {tab.locked && <Lock size={11} className="text-amber-400/70" />}
@@ -928,6 +1044,14 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         <InfoDialog
           title="Impossible de créer l'entreprise"
           message={dialog.payload || "Une erreur inattendue est survenue. Réessayez dans un instant."}
+          danger
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.type === "txError" && (
+        <InfoDialog
+          title="Écriture non enregistrée"
+          message={dialog.payload || "L'écriture n'a pas pu être enregistrée. Vérifiez les informations puis réessayez."}
           danger
           onClose={() => setDialog(null)}
         />

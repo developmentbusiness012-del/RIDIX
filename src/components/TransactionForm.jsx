@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Package, Loader2, Plus, Wallet } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { memGet, memSet } from "../dataCache";
 import { DEVISES, TYPES_OP, CATEGORIES_RECETTE, CATEGORIES_DEPENSE, CASH_ACCOUNT_TYPES, formatMontant } from "../constants";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -22,15 +23,17 @@ export default function TransactionForm({ deviseBase, plan, companyId, cashAccou
   const [accountError, setAccountError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => memGet(`prodlite:${companyId}`) || []);
   const [productId, setProductId] = useState("");
   const [productQty, setProductQty] = useState("");
 
   useEffect(() => {
     if (plan !== "premium" || !companyId) return;
     (async () => {
-      const { data } = await supabase.from("products").select("id, name, quantity, unit").eq("company_id", companyId).order("name");
+      const { data, error } = await supabase.from("products").select("id, name, quantity, unit").eq("company_id", companyId).order("name");
+      if (error) return;
       setProducts(data || []);
+      memSet(`prodlite:${companyId}`, data || []);
     })();
   }, [plan, companyId]);
 

@@ -1,25 +1,36 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { HandCoins, Plus, Trash2, X, Loader2, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
+import { memGet, memSet } from "../dataCache";
 import { PremiumTeaser } from "./StockPanel";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
 
 export default function CreditsPanel({ companyId, plan, isOwner, canManage = true, deviseBase, onUpgrade, checkoutLoading }) {
-  const [credits, setCredits] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `credits:${companyId}`;
+  const [credits, setCredits] = useState(() => memGet(cacheKey) || []);
+  const [loading, setLoading] = useState(() => !memGet(cacheKey));
+  const loadedFor = useRef(memGet(cacheKey) ? companyId : null);
   const [showForm, setShowForm] = useState(false);
   const [tab, setTab] = useState("client"); // client = créances, fournisseur = dettes
 
   useEffect(() => {
     if (plan !== "premium" || !companyId) { setLoading(false); return; }
     (async () => {
-      setLoading(true);
-      const { data } = await supabase.from("credits").select("*").eq("company_id", companyId).order("date_echeance", { ascending: true, nullsFirst: false });
+      const hit = memGet(cacheKey);
+      if (hit) { setCredits(hit); setLoading(false); loadedFor.current = companyId; } else { setLoading(true); }
+      const { data, error } = await supabase.from("credits").select("*").eq("company_id", companyId).order("date_echeance", { ascending: true, nullsFirst: false });
+      if (error) { setLoading(false); return; }
+      loadedFor.current = companyId;
       setCredits(data || []);
+      memSet(cacheKey, data || []);
       setLoading(false);
     })();
   }, [companyId, plan]);
+
+  useEffect(() => {
+    if (loadedFor.current === companyId) memSet(cacheKey, credits);
+  }, [credits]);
 
   const list = useMemo(() => credits.filter((c) => c.type === tab), [credits, tab]);
   const totalOuvert = useMemo(

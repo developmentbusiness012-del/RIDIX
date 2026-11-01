@@ -21,10 +21,12 @@ export function getPending(companyId) {
   return queue[companyId] || [];
 }
 
-export function addPending(companyId, tx) {
+// serverId : identifiant définitif généré côté appareil. Il est réutilisé à l'envoi, donc une
+// écriture dont la réponse s'est perdue en route n'est jamais enregistrée en double.
+export function addPending(companyId, tx, serverId) {
   const queue = readQueue();
   const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const entry = { ...tx, id: localId, company_id: companyId, _pending: true, _localId: localId };
+  const entry = { ...tx, id: localId, company_id: companyId, _pending: true, _localId: localId, ...(serverId ? { _serverId: serverId } : {}) };
   queue[companyId] = [...(queue[companyId] || []), entry];
   writeQueue(queue);
   return entry;
@@ -51,9 +53,13 @@ export async function syncPendingForCompany(companyId, supabase) {
   const syncedRows = [];
 
   for (const entry of pending) {
-    const { _pending, _localId, id, ...payload } = entry;
+    const { _pending, _localId, _serverId, id, ...payload } = entry;
     try {
-      const { data, error } = await supabase.from("transactions").insert(payload).select().single();
+      let { data, error } = await supabase.from("transactions").insert(_serverId ? { ...payload, id: _serverId } : payload).select().single();
+      if (error && error.code === "23505" && _serverId) {
+        // Déjà enregistrée lors d'une tentative précédente : on récupère la ligne existante.
+        ({ data, error } = await supabase.from("transactions").select("*").eq("id", _serverId).single());
+      }
       if (!error && data) {
         removePending(companyId, _localId);
         syncedLocalIds.push(_localId);
@@ -74,6 +80,25 @@ export function cacheSet(key, value) {
   } catch {
     /* stockage plein ou indisponible : tant pis, pas critique */
   }
+}
+
+// Vide le cache de lecture (jamais la file d'écritures en attente) : à appeler à la déconnexion
+// pour qu'un autre compte sur le même appareil ne voie pas les données du précédent.
+export function cacheClearAll() {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(CACHE_PREFIX))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* ignoré */
+  }
+}
+
+// Met à jour la copie locale d'une liste d'écritures sans la recharger depuis le réseau.
+export function patchTxCache(companyId, fn) {
+  const current = cacheGet(`tx_${companyId}`);
+  if (!current) return;
+  cacheSet(`tx_${companyId}`, fn(current));
 }
 
 export function cacheGet(key) {

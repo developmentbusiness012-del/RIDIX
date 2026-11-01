@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { FolderLock, Upload, Trash2, Download, Loader2, FileText, X } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { ConfirmDialog } from "./Dialogs";
+import { memGet, memSet } from "../dataCache";
 
 const CATEGORIES = [
   { id: "legal", label: "Juridique" },
@@ -25,8 +26,10 @@ function sanitizeName(name) {
 }
 
 export default function DataRoomPanel({ companyId, plan, isOwner, onUpgrade, checkoutLoading }) {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `documents:${companyId}`;
+  const [documents, setDocuments] = useState(() => memGet(cacheKey) || []);
+  const [loading, setLoading] = useState(() => !memGet(cacheKey));
+  const loadedFor = useRef(memGet(cacheKey) ? companyId : null);
   const [filter, setFilter] = useState("tous");
   const [uploading, setUploading] = useState(false);
   const [uploadCategory, setUploadCategory] = useState("legal");
@@ -37,12 +40,20 @@ export default function DataRoomPanel({ companyId, plan, isOwner, onUpgrade, che
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
-      setLoading(true);
-      const { data } = await supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
+      const hit = memGet(cacheKey);
+      if (hit) { setDocuments(hit); setLoading(false); loadedFor.current = companyId; } else { setLoading(true); }
+      const { data, error } = await supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
+      if (error) { setLoading(false); return; }
+      loadedFor.current = companyId;
       setDocuments(data || []);
+      memSet(cacheKey, data || []);
       setLoading(false);
     })();
   }, [companyId]);
+
+  useEffect(() => {
+    if (loadedFor.current === companyId) memSet(cacheKey, documents);
+  }, [documents]);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];

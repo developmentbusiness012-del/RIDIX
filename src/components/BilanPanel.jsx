@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Scale, Plus, Trash2, X, Loader2, Landmark, Building } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { formatMontant, LIABILITY_CATEGORIES } from "../constants";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
+import { memGet, memSet } from "../dataCache";
 
 const ASSET_CATEGORIES = [
   { id: "equipement", label: "Équipement" },
@@ -12,31 +13,42 @@ const ASSET_CATEGORIES = [
 ];
 
 export default function BilanPanel({ companyId, plan, isOwner, deviseBase, transactions, cashAccounts = [], onUpgrade, checkoutLoading }) {
-  const [assets, setAssets] = useState([]);
-  const [liabilities, setLiabilities] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [credits, setCredits] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `bilan:${companyId}`;
+  const [assets, setAssets] = useState(() => memGet(cacheKey)?.assets || []);
+  const [liabilities, setLiabilities] = useState(() => memGet(cacheKey)?.liabilities || []);
+  const [products, setProducts] = useState(() => memGet(cacheKey)?.products || []);
+  const [credits, setCredits] = useState(() => memGet(cacheKey)?.credits || []);
+  const [loading, setLoading] = useState(() => !memGet(cacheKey));
+  const loadedFor = useRef(memGet(cacheKey) ? companyId : null);
   const [showForm, setShowForm] = useState(false);
   const [tab, setTab] = useState("actifs"); // actifs | passifs
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
-      setLoading(true);
-      const [{ data: a }, { data: l }, { data: p }, { data: c }] = await Promise.all([
+      const hit = memGet(cacheKey);
+      if (hit) { setAssets(hit.assets); setLiabilities(hit.liabilities); setProducts(hit.products); setCredits(hit.credits); setLoading(false); loadedFor.current = companyId; } else { setLoading(true); }
+      const results = await Promise.all([
         supabase.from("assets").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
         supabase.from("liabilities").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
         supabase.from("products").select("quantity, unit_price, cost_price").eq("company_id", companyId),
         supabase.from("credits").select("type, statut, montant, montant_paye").eq("company_id", companyId),
       ]);
+      if (results.some((r) => r.error)) { setLoading(false); return; }
+      const [{ data: a }, { data: l }, { data: p }, { data: c }] = results;
+      loadedFor.current = companyId;
       setAssets(a || []);
       setLiabilities(l || []);
       setProducts(p || []);
       setCredits(c || []);
+      memSet(cacheKey, { assets: a || [], liabilities: l || [], products: p || [], credits: c || [] });
       setLoading(false);
     })();
   }, [companyId]);
+
+  useEffect(() => {
+    if (loadedFor.current === companyId) memSet(cacheKey, { assets, liabilities, products, credits });
+  }, [assets, liabilities, products, credits]);
 
   const summary = useMemo(() => {
     const tresorerie = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);

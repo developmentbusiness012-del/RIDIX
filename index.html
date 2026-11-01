@@ -28,12 +28,23 @@
     <meta name="apple-mobile-web-app-title" content="Ridix" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>RIDIX — L'intelligence financière des PME africaines</title>
+    <!-- Connexion à Supabase ouverte dès le chargement de la page (gain ~100-300 ms sur la 1re requête) -->
+    <link rel="preconnect" href="https://sjzrexjaftgrmhrighzt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Polices chargées sans bloquer l'affichage (display=swap : le texte apparaît tout de suite) -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

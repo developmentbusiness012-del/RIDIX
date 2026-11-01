@@ -1,14 +1,19 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "./supabaseClient";
 import Landing from "./components/Landing";
 import Auth from "./components/Auth";
 import Pricing from "./components/Pricing";
 import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { pollPayment, verifyPayment } from "./payments";
-import { cacheGet, cacheSet } from "./offlineQueue";
+import { cacheGet, cacheSet, cacheClearAll } from "./offlineQueue";
+import { memClear } from "./dataCache";
 
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
-const Dashboard = lazy(() => import("./components/Dashboard"));
+const loadDashboard = () => import("./components/Dashboard");
+const Dashboard = lazy(loadDashboard);
+// Si une session existe déjà sur cet appareil, on télécharge le Dashboard EN PARALLÈLE de la
+// vérification de session au lieu d'attendre qu'elle soit terminée (suppression d'une cascade réseau).
+try { if (localStorage.getItem("ridix-auth")) loadDashboard(); } catch { /* ignoré */ }
 
 function PaymentReturnOverlay({ onResolved }) {
   const [state, setState] = useState("checking"); // checking | completed | failed | timeout
@@ -95,32 +100,49 @@ export default function App() {
     () => new URLSearchParams(window.location.search).get("paiement") === "verification"
   );
 
-  const resolveProfile = useCallback(async (userId) => {
-    setResolving(true);
+  const profileRef = useRef(null);
+  const resolvedUserRef = useRef(null);
+  const inflightRef = useRef(null);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
+  const doResolve = useCallback(async (userId) => {
+    // Démarrage instantané : on affiche tout de suite le dernier profil connu pendant qu'on le revérifie
+    // en arrière-plan. L'écran « Préparation » n'apparaît que pour un tout premier lancement.
+    const cachedProfile = cacheGet(`profile_${userId}`);
+    if (cachedProfile && !cachedProfile.offlineNoCache) {
+      setProfile((prev) => prev || cachedProfile);
+    } else if (!profileRef.current) {
+      setResolving(true);
+    }
     try {
-      // Tentative propriétaire
-      const { data: ownerSettings, error: e1 } = await supabase.from("account_settings").select("*").eq("user_id", userId).maybeSingle();
-      if (e1) throw e1;
+      // Les deux recherches (propriétaire / employé) partent en même temps au lieu d'être enchaînées.
+      const [ownerRes, memberRes] = await Promise.all([
+        supabase.from("account_settings").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("company_members").select("*, companies(*)").eq("user_id", userId).maybeSingle(),
+      ]);
+      if (ownerRes.error) throw ownerRes.error;
+      const ownerSettings = ownerRes.data;
       if (ownerSettings) {
         const p = { role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin, premiumExpiresAt: ownerSettings.premium_expires_at };
         cacheSet(`profile_${userId}`, p);
+        resolvedUserRef.current = userId;
         setProfile(p);
         setResolving(false);
         return;
       }
-      // Tentative employé
-      const { data: membership, error: e2 } = await supabase.from("company_members").select("*, companies(*)").eq("user_id", userId).maybeSingle();
-      if (e2) throw e2;
+      if (memberRes.error) throw memberRes.error;
+      const membership = memberRes.data;
       if (membership) {
         const { data: ownerPlan } = await supabase.from("account_settings").select("plan").eq("user_id", membership.companies.owner_id).maybeSingle();
         const p = { role: membership.role || "employe", plan: ownerPlan?.plan || "premium", onboarded: true };
         cacheSet(`profile_${userId}`, p);
+        resolvedUserRef.current = userId;
         setProfile(p);
         setResolving(false);
         return;
       }
       // Compte tout juste créé, le trigger n'a pas encore fini (rare) : on retente une fois
-      setTimeout(() => resolveProfile(userId), 900);
+      setTimeout(() => doResolve(userId), 900);
     } catch {
       // Hors ligne ou erreur réseau : on retombe sur le dernier profil connu plutôt
       // que de rester bloqué indéfiniment sur l'écran de chargement.
@@ -133,6 +155,16 @@ export default function App() {
       setResolving(false);
     }
   }, []);
+
+  // Évite les résolutions en double (getSession + INITIAL_SESSION + SIGNED_IN au démarrage).
+  const resolveProfile = useCallback((userId) => {
+    if (inflightRef.current?.userId === userId) return inflightRef.current.promise;
+    const promise = doResolve(userId).finally(() => {
+      if (inflightRef.current?.promise === promise) inflightRef.current = null;
+    });
+    inflightRef.current = { userId, promise };
+    return promise;
+  }, [doResolve]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data, error }) => {
@@ -147,10 +179,15 @@ export default function App() {
       if (event === "SIGNED_OUT") {
         setSession(null);
         setProfile(null);
+        resolvedUserRef.current = null;
+        cacheClearAll();
+        memClear();
         return;
       }
       if (s) {
         setSession(s);
+        // Rafraîchissement de jeton / retour sur l'onglet : le profil est déjà à jour, inutile de tout relire.
+        if (profileRef.current && resolvedUserRef.current === s.user.id && event !== "USER_UPDATED") return;
         resolveProfile(s.user.id);
       }
       // Les autres événements (ex. échec ponctuel de rafraîchissement hors-ligne)
