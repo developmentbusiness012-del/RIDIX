@@ -11,6 +11,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [mode, setMode] = useState(initialMode); // signin | signup | employee
   const [email, setEmail] = useState(""); // uniquement pour les anciens comptes créés avec un email
   const [legacyLogin, setLegacyLogin] = useState(false);
+  const [emailHint, setEmailHint] = useState(false); // proposé après un échec de connexion par numéro
   const [dial, setDial] = useState(() => { try { return localStorage.getItem("ridix_dial") ?? DEFAULT_DIAL; } catch { return DEFAULT_DIAL; } });
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +34,10 @@ export default function Auth({ initialMode = "signin", onBack }) {
       return;
     }
     // Le numéro de téléphone est l'identifiant (sauf connexion d'un ancien compte par email).
-    const usingEmail = mode === "signin" && legacyLogin;
+    // Un email tapé dans le champ « numéro » est reconnu automatiquement (anciens comptes).
+    const emailInPhoneField = mode === "signin" && !legacyLogin && phone.includes("@");
+    const usingEmail = mode === "signin" && (legacyLogin || emailInPhoneField);
+    const emailValue = (legacyLogin ? email : phone).trim();
     const key = usingEmail ? null : normalizePhone(phone, dial);
     if (!usingEmail && !key) {
       setError("Numéro de téléphone invalide. Vérifiez l'indicatif du pays et le numéro.");
@@ -60,13 +64,28 @@ export default function Auth({ initialMode = "signin", onBack }) {
           if (joinError) throw joinError;
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: usingEmail ? email.trim() : phoneToEmail(key), password });
+        let { error } = await supabase.auth.signInWithPassword({ email: usingEmail ? emailValue : phoneToEmail(key), password });
+        if (error && !usingEmail && error.message === "Invalid login credentials") {
+          // Compte créé avant le passage à la connexion par numéro : on le retrouve grâce au numéro
+          // enregistré à l'inscription, et il est basculé sur ce numéro pour les connexions suivantes.
+          const { data: fnData, error: fnError } = await supabase.functions.invoke("phone-login", { body: { phone: key, password } });
+          if (fnData?.session) {
+            const { error: setErr } = await supabase.auth.setSession(fnData.session);
+            if (setErr) throw setErr;
+            error = null;
+          } else if (fnError?.context?.status === 429) {
+            throw new Error("Trop de tentatives. Réessayez dans quelques minutes.");
+          }
+        }
         if (error) throw error;
       }
       try { localStorage.setItem("ridix_dial", dial); } catch { /* ignoré */ }
     } catch (err) {
       const msg = err.message || "";
-      if (msg === "Invalid login credentials") setError(usingEmail ? "Email ou mot de passe incorrect." : "Numéro ou mot de passe incorrect.");
+      if (msg === "Invalid login credentials") {
+        setError(usingEmail ? "Email ou mot de passe incorrect." : "Numéro ou mot de passe incorrect.");
+        if (!usingEmail && mode === "signin") setEmailHint(true);
+      }
       else if (/already registered|already been registered|user_already_exists/i.test(msg)) setError("Ce numéro est déjà inscrit. Utilisez l'onglet « Connexion ».");
       else setError(msg);
     } finally {
@@ -224,8 +243,8 @@ export default function Auth({ initialMode = "signin", onBack }) {
                     Mot de passe oublié ?
                   </button>
                   {!legacyLogin && (
-                    <button type="button" onClick={() => { setLegacyLogin(true); setError(""); }} className="text-[11px] text-slate-500 hover:text-slate-300 text-right">
-                      Ancien compte avec email
+                    <button type="button" onClick={() => { setLegacyLogin(true); setError(""); setEmailHint(false); }} className="text-[11px] text-amber-400 hover:text-amber-300 text-right underline underline-offset-2">
+                      Compte créé avec un email ?
                     </button>
                   )}
                 </div>
@@ -254,6 +273,15 @@ export default function Auth({ initialMode = "signin", onBack }) {
             )}
 
             {error && <p className="text-xs text-rose-400 bg-rose-400/10 border border-rose-400/30 rounded-md px-3 py-2">{error}</p>}
+            {emailHint && mode === "signin" && !legacyLogin && (
+              <div className="text-xs text-amber-200 bg-amber-400/10 border border-amber-400/30 rounded-md px-3 py-2.5">
+                <p className="mb-2">Votre compte a été créé avec une adresse email (avant le passage au numéro) ? Connectez-vous avec cet email : votre numéro vous sera demandé ensuite, une seule fois.</p>
+                <button type="button" onClick={() => { setLegacyLogin(true); setEmailHint(false); setError(""); }}
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium rounded-md px-3 py-1.5 text-xs">
+                  Me connecter avec mon email
+                </button>
+              </div>
+            )}
 
             <button
               type="submit"
