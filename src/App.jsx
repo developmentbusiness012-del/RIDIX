@@ -7,10 +7,12 @@ import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { pollPayment, verifyPayment } from "./payments";
 import { cacheGet, cacheSet, cacheClearAll } from "./offlineQueue";
 import { memClear } from "./dataCache";
+import { isPhoneEmail } from "./phoneAuth";
 
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
 const loadDashboard = () => import("./components/Dashboard");
 const Dashboard = lazy(loadDashboard);
+const PhoneGate = lazy(() => import("./components/PhoneGate"));
 // Si une session existe déjà sur cet appareil, on télécharge le Dashboard EN PARALLÈLE de la
 // vérification de session au lieu d'attendre qu'elle soit terminée (suppression d'une cascade réseau).
 try { if (localStorage.getItem("ridix-auth")) loadDashboard(); } catch { /* ignoré */ }
@@ -123,7 +125,7 @@ export default function App() {
       if (ownerRes.error) throw ownerRes.error;
       const ownerSettings = ownerRes.data;
       if (ownerSettings) {
-        const p = { role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin, premiumExpiresAt: ownerSettings.premium_expires_at };
+        const p = { role: "owner", plan: ownerSettings.plan, onboarded: ownerSettings.onboarded, isAdmin: ownerSettings.is_admin, premiumExpiresAt: ownerSettings.premium_expires_at, phone: ownerSettings.phone || null };
         cacheSet(`profile_${userId}`, p);
         resolvedUserRef.current = userId;
         setProfile(p);
@@ -134,7 +136,7 @@ export default function App() {
       const membership = memberRes.data;
       if (membership) {
         const { data: ownerPlan } = await supabase.from("account_settings").select("plan").eq("user_id", membership.companies.owner_id).maybeSingle();
-        const p = { role: membership.role || "employe", plan: ownerPlan?.plan || "premium", onboarded: true };
+        const p = { role: membership.role || "employe", plan: ownerPlan?.plan || "premium", onboarded: true, phone: membership.phone || null };
         cacheSet(`profile_${userId}`, p);
         resolvedUserRef.current = userId;
         setProfile(p);
@@ -241,6 +243,15 @@ export default function App() {
           </p>
         </div>
       </div>
+    );
+  }
+  // Ancien compte créé avec un email : le numéro de téléphone devient l'identifiant de connexion.
+  // Demandé une seule fois (et seulement en ligne, l'enregistrement passe par le serveur).
+  if (!profile.phone && !isPhoneEmail(session.user.email) && navigator.onLine) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400"><Loader2 className="animate-spin" size={18} /></div>}>
+        <PhoneGate onLinked={() => resolveProfile(session.user.id)} />
+      </Suspense>
     );
   }
   const paymentOverlay = showPaymentReturn && (

@@ -54,7 +54,7 @@ function CguContent() {
 
       <H>3. Création de compte</H>
       <Ul>
-        <li>Vous devez fournir une adresse email valide et exacte.</li>
+        <li>Vous devez fournir un numéro de téléphone valide et exact, qui sert d'identifiant de connexion.</li>
         <li>Vous êtes responsable de la confidentialité de votre mot de passe et de toute activité effectuée depuis votre compte.</li>
         <li>Un compte « propriétaire » peut inviter des « employés » via un code entreprise unique ; le propriétaire reste seul responsable de la gestion des accès de son entreprise.</li>
       </Ul>
@@ -101,7 +101,7 @@ function PrivacyContent() {
 
       <H>2. Quelles données nous collectons</H>
       <Ul>
-        <li><strong className="text-slate-300">Données de compte</strong> : email, mot de passe (chiffré, jamais lisible par nous), nom (pour les employés), pays.</li>
+        <li><strong className="text-slate-300">Données de compte</strong> : numéro de téléphone, mot de passe (chiffré, jamais lisible par nous), nom (pour les employés), pays.</li>
         <li><strong className="text-slate-300">Données d'entreprise</strong> : nom de l'entreprise, profil d'activité, devise.</li>
         <li><strong className="text-slate-300">Données financières</strong> : écritures (recettes/dépenses), stock, créances et dettes que vous saisissez vous-même.</li>
         <li><strong className="text-slate-300">Données techniques</strong> : date de connexion, appareil utilisé (pour la sécurité et le support).</li>
@@ -122,7 +122,7 @@ function PrivacyContent() {
       <Ul>
         <li><strong className="text-slate-300">Supabase</strong> (hébergement de la base de données et authentification, serveurs situés en Union européenne).</li>
         <li><strong className="text-slate-300">Vercel</strong> (hébergement de l'application web).</li>
-        <li><strong className="text-slate-300">Maketou</strong> (traitement des paiements — reçoit votre nom et email, jamais vos données financières internes).</li>
+        <li><strong className="text-slate-300">Maketou</strong> (traitement des paiements — reçoit votre nom et vos coordonnées de contact, jamais vos données financières internes).</li>
       </Ul>
       <P>Vos données financières internes (écritures, stock, créances) ne sont jamais transmises à Maketou ni à aucun tiers publicitaire.</P>
 

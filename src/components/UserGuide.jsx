@@ -12,7 +12,7 @@ const SECTIONS = [
     items: [
       {
         q: "Comment créer mon compte ?",
-        a: "Sur l'écran d'accueil, choisissez « Créer une entreprise », indiquez le nom de votre entreprise, votre pays, votre email et un mot de passe. Aucune confirmation par email n'est nécessaire — vous accédez directement à votre tableau de bord.",
+        a: "Sur l'écran d'accueil, choisissez « Créer une entreprise », indiquez le nom de votre entreprise, votre pays, votre numéro de téléphone et un mot de passe. Votre numéro sera votre identifiant de connexion. Aucune confirmation n'est nécessaire — vous accédez directement à votre tableau de bord.",
       },
       {
         q: "Comment un employé rejoint-il mon entreprise ?",
@@ -148,7 +148,7 @@ const SECTIONS = [
       },
       {
         q: "J'ai oublié mon mot de passe, comment faire ?",
-        a: "Sur l'écran de connexion, cliquez sur « Mot de passe oublié ? ». Vous recevez un code par email, que vous entrez avec votre nouveau mot de passe.",
+        a: "Sur l'écran de connexion, cliquez sur « Mot de passe oublié ? » puis sur « Contacter le support sur WhatsApp » depuis le numéro de votre compte. Nous vous envoyons un mot de passe temporaire, que vous pouvez changer dans Paramètres > Changer mon mot de passe.",
       },
     ],
   },

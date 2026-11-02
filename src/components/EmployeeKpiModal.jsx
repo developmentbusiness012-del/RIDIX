@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Wallet, TrendingDown, TrendingUp, Percent } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { displayContact } from "../phoneAuth";
 import { formatMontant } from "../constants";
 
 export default function EmployeeKpiModal({ employee, companyId, deviseBase, onClose }) {
@@ -29,7 +30,7 @@ export default function EmployeeKpiModal({ employee, companyId, deviseBase, onCl
     return { ca, dep, profit, marge };
   }, [transactions]);
 
-  const displayName = employee.name || employee.email || "Employé";
+  const displayName = employee.name || displayContact(employee.email) || "Employé";
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 flex items-end sm:items-center justify-center z-[300] p-0 sm:p-4">
@@ -38,7 +39,7 @@ export default function EmployeeKpiModal({ employee, companyId, deviseBase, onCl
           <div>
             <p className="text-[10px] uppercase tracking-wide text-slate-500 font-mono">Chiffres de</p>
             <h3 className="font-serif text-lg text-slate-50">{displayName}</h3>
-            {employee.email && employee.name && <p className="text-xs text-slate-500">{employee.email}</p>}
+            {employee.email && employee.name && <p className="text-xs text-slate-500">{displayContact(employee.email)}</p>}
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
         </div>

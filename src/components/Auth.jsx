@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
 import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe, Phone } from "lucide-react";
+import PhoneInput from "./PhoneInput";
+import { normalizePhone, phoneToEmail, DIAL_CODES, DEFAULT_DIAL } from "../phoneAuth";
 import ForgotPassword from "./ForgotPassword";
 import LegalDocsModal from "./LegalDocsModal";
 import { PAYS_AFRIQUE } from "../constants";
 
 export default function Auth({ initialMode = "signin", onBack }) {
   const [mode, setMode] = useState(initialMode); // signin | signup | employee
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(""); // uniquement pour les anciens comptes créés avec un email
+  const [legacyLogin, setLegacyLogin] = useState(false);
+  const [dial, setDial] = useState(() => { try { return localStorage.getItem("ridix_dial") ?? DEFAULT_DIAL; } catch { return DEFAULT_DIAL; } });
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
@@ -28,32 +32,43 @@ export default function Auth({ initialMode = "signin", onBack }) {
       setError("Vous devez accepter les Conditions Générales d'Utilisation et la Politique de confidentialité pour continuer.");
       return;
     }
+    // Le numéro de téléphone est l'identifiant (sauf connexion d'un ancien compte par email).
+    const usingEmail = mode === "signin" && legacyLogin;
+    const key = usingEmail ? null : normalizePhone(phone, dial);
+    if (!usingEmail && !key) {
+      setError("Numéro de téléphone invalide. Vérifiez l'indicatif du pays et le numéro.");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: phoneToEmail(key),
           password,
-          options: { data: { account_type: "owner", company_name: companyName, country, phone: phone.trim() } },
+          options: { data: { account_type: "owner", company_name: companyName, country, phone: "+" + key } },
         });
         if (error) throw error;
       } else if (mode === "employee") {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: phoneToEmail(key),
           password,
-          options: { data: { account_type: "employee", full_name: employeeName } },
+          options: { data: { account_type: "employee", full_name: employeeName, phone: "+" + key } },
         });
         if (error) throw error;
         if (data.session) {
-          const { error: joinError } = await supabase.rpc("join_company_with_code", { p_code: companyCode, p_name: employeeName, p_phone: phone.trim() });
+          const { error: joinError } = await supabase.rpc("join_company_with_code", { p_code: companyCode, p_name: employeeName, p_phone: "+" + key });
           if (joinError) throw joinError;
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: usingEmail ? email.trim() : phoneToEmail(key), password });
         if (error) throw error;
       }
+      try { localStorage.setItem("ridix_dial", dial); } catch { /* ignoré */ }
     } catch (err) {
-      setError(err.message === "Invalid login credentials" ? "Identifiants incorrects." : err.message);
+      const msg = err.message || "";
+      if (msg === "Invalid login credentials") setError(usingEmail ? "Email ou mot de passe incorrect." : "Numéro ou mot de passe incorrect.");
+      else if (/already registered|already been registered|user_already_exists/i.test(msg)) setError("Ce numéro est déjà inscrit. Utilisez l'onglet « Connexion ».");
+      else setError(msg);
     } finally {
       setLoading(false);
     }
@@ -119,7 +134,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
                 <select
                   required
                   value={country}
-                  onChange={(e) => setCountry(e.target.value)}
+                  onChange={(e) => { setCountry(e.target.value); if (DIAL_CODES[e.target.value]) setDial(DIAL_CODES[e.target.value]); }}
                   className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
                 >
                   {PAYS_AFRIQUE.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -156,31 +171,32 @@ export default function Auth({ initialMode = "signin", onBack }) {
               </div>
             )}
 
-            {mode !== "signin" && (
+            {mode === "signin" && legacyLogin ? (
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Adresse email (ancien compte)</label>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
+                  placeholder="toi@entreprise.com"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">Connectez-vous une dernière fois avec votre email : nous vous demanderons ensuite votre numéro de téléphone.</p>
+                <button type="button" onClick={() => { setLegacyLogin(false); setError(""); }} className="text-[11px] text-amber-400 hover:text-amber-300 mt-1">
+                  Utiliser mon numéro de téléphone
+                </button>
+              </div>
+            ) : (
               <div>
                 <label className="flex items-center gap-1.5 text-xs text-slate-400 mb-1"><Phone size={12} /> Numéro de téléphone</label>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
-                  placeholder="Ex : +237 6XX XX XX XX"
-                />
+                <PhoneInput dial={dial} onDialChange={setDial} value={phone} onChange={setPhone} />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {mode === "signin" ? "Le numéro utilisé lors de votre inscription." : "Ce numéro sera votre identifiant de connexion."}
+                </p>
               </div>
             )}
-
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Adresse email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
-                placeholder="toi@entreprise.com"
-              />
-            </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Mot de passe</label>
               <div className="relative">
@@ -203,9 +219,16 @@ export default function Auth({ initialMode = "signin", onBack }) {
                 </button>
               </div>
               {mode === "signin" && (
-                <button type="button" onClick={() => setShowForgot(true)} className="text-[11px] text-amber-400 hover:text-amber-300 mt-1.5">
-                  Mot de passe oublié ?
-                </button>
+                <div className="flex items-center justify-between mt-1.5 gap-3">
+                  <button type="button" onClick={() => setShowForgot(true)} className="text-[11px] text-amber-400 hover:text-amber-300">
+                    Mot de passe oublié ?
+                  </button>
+                  {!legacyLogin && (
+                    <button type="button" onClick={() => { setLegacyLogin(true); setError(""); }} className="text-[11px] text-slate-500 hover:text-slate-300 text-right">
+                      Ancien compte avec email
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -243,7 +266,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
           </form>
         </div>
         <p className="text-center text-[11px] text-slate-600 mt-4">
-          Aucune confirmation par email n'est requise : l'accès est immédiat après inscription.
+          Votre numéro de téléphone est votre identifiant. Aucune confirmation n'est requise : l'accès est immédiat après inscription.
         </p>
       </div>
       {showLegal && <LegalDocsModal initialTab={showLegal} onClose={() => setShowLegal(null)} />}

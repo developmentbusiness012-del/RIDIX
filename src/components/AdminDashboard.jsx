@@ -5,7 +5,8 @@ import {
 import { Users, UserCheck, Crown, Gift, Building2, Receipt, ArrowLeft, Loader2, BarChart3, MessageCircle, Globe2 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import AdminMessaging from "./AdminMessaging";
-import { InfoDialog } from "./Dialogs";
+import { InfoDialog, ConfirmDialog } from "./Dialogs";
+import { displayContact } from "../phoneAuth";
 
 export default function AdminDashboard({ onBack }) {
   const [tab, setTab] = useState("stats");
@@ -14,6 +15,8 @@ export default function AdminDashboard({ onBack }) {
   const [stats, setStats] = useState(null);
   const [planUpdating, setPlanUpdating] = useState(null);
   const [planErrorMsg, setPlanErrorMsg] = useState(null);
+  const [resetTarget, setResetTarget] = useState(null); // utilisateur dont on réinitialise le mot de passe
+  const [resetResult, setResetResult] = useState(null); // { user, password }
 
   useEffect(() => {
     (async () => {
@@ -52,6 +55,20 @@ export default function AdminDashboard({ onBack }) {
       setPlanErrorMsg(error.message);
     }
     setPlanUpdating(null);
+  };
+
+  // Les comptes connectés par numéro n'ont pas d'email : le mot de passe est réinitialisé par l'administrateur,
+  // qui transmet le mot de passe temporaire à l'utilisateur (ex : par WhatsApp).
+  const resetPassword = async () => {
+    const user = resetTarget;
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: { userId: user.id },
+    });
+    setResetTarget(null);
+    if (error || !data?.password) setPlanErrorMsg("La réinitialisation du mot de passe a échoué. Réessayez.");
+    else setResetResult({ user, password: data.password });
   };
 
   if (loading) {
@@ -177,7 +194,7 @@ export default function AdminDashboard({ onBack }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-y border-slate-800">
-                  <th className="px-4 py-2 font-medium">Email</th>
+                  <th className="px-4 py-2 font-medium">Identifiant</th>
                   <th className="px-2 py-2 font-medium">Téléphone</th>
                   <th className="px-2 py-2 font-medium">Rôle</th>
                   <th className="px-2 py-2 font-medium">Offre</th>
@@ -191,7 +208,7 @@ export default function AdminDashboard({ onBack }) {
               <tbody>
                 {(stats.users || []).map((u, i) => (
                   <tr key={i} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                    <td className="px-4 py-2 text-slate-300">{u.email}</td>
+                    <td className="px-4 py-2 text-slate-300">{displayContact(u.email)}</td>
                     <td className="px-2 py-2 text-slate-400 font-mono text-xs">{u.phone || "—"}</td>
                     <td className="px-2 py-2">
                       <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${u.role === "owner" ? "text-indigo-300 border-indigo-400" : "text-slate-400 border-slate-600"}`}>
@@ -206,6 +223,7 @@ export default function AdminDashboard({ onBack }) {
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString("fr-FR") : "—"}</td>
                     <td className="px-2 py-2 text-slate-500 font-mono text-xs">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString("fr-FR") : "Jamais"}</td>
                     <td className="px-2 py-2 text-right">
+                      <div className="flex items-center justify-end gap-2">
                       {u.role === "owner" ? (
                         <div className="relative inline-block">
                           <select
@@ -227,6 +245,10 @@ export default function AdminDashboard({ onBack }) {
                       ) : (
                         <span className="text-[10px] text-slate-600">hérité du patron</span>
                       )}
+                      <button onClick={() => setResetTarget(u)} className="text-[11px] px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-400 hover:border-amber-700/50 hover:text-amber-300" title="Générer un mot de passe temporaire">
+                        Mot de passe
+                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -237,6 +259,22 @@ export default function AdminDashboard({ onBack }) {
         </>
         )}
       </div>
+      {resetTarget && (
+        <ConfirmDialog
+          title="Réinitialiser le mot de passe ?"
+          message={`Un mot de passe temporaire sera généré pour ${displayContact(resetTarget.email)}. L'ancien mot de passe ne fonctionnera plus.`}
+          confirmLabel="Générer"
+          onConfirm={resetPassword}
+          onCancel={() => setResetTarget(null)}
+        />
+      )}
+      {resetResult && (
+        <InfoDialog
+          title="Mot de passe temporaire"
+          message={`${displayContact(resetResult.user.email)} → ${resetResult.password}  —  Transmettez-le à l'utilisateur (WhatsApp). Il pourra le changer dans Paramètres > Changer mon mot de passe. Il ne sera plus affiché après fermeture.`}
+          onClose={() => setResetResult(null)}
+        />
+      )}
       {planErrorMsg && (
         <InfoDialog title="Impossible de modifier le plan" message={planErrorMsg} danger onClose={() => setPlanErrorMsg(null)} />
       )}

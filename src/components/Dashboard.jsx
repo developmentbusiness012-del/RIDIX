@@ -51,6 +51,8 @@ import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { computeAnalysis } from "../analysisUtils";
 import { computeTreasury } from "../treasuryUtils";
+import { displayContact } from "../phoneAuth";
+import ChangePassword from "./ChangePassword";
 import { computeCapacity, computeReadiness } from "../financingUtils";
 import { startPremiumCheckout } from "../payments";
 import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet, patchTxCache } from "../offlineQueue";
@@ -1154,6 +1156,8 @@ function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, on
                 <NotificationOptIn userId={session?.user?.id} context="dashboard" variant="dark" label="Activer" />
               </div>
 
+              <ChangePassword />
+
               <div>
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -1264,7 +1268,7 @@ function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, on
                     {employees.map((e) => (
                       <div key={e.id} className="flex items-center justify-between bg-slate-800/60 rounded-md px-3 py-2 text-sm gap-2">
                         <button onClick={() => setViewingEmployee(e)} className="text-slate-300 hover:text-amber-300 text-left truncate flex-1">
-                          {e.name || e.email || "Employé"}
+                          {e.name || displayContact(e.email) || "Employé"}
                         </button>
                         <select
                           value={e.role}

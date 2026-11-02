@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Send, Loader2, MessageCircle, Plus, X } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { displayContact } from "../phoneAuth";
 
 export default function AdminMessaging() {
   const [threads, setThreads] = useState([]);
@@ -77,7 +78,7 @@ export default function AdminMessaging() {
                 className={`w-full text-left px-4 py-3 border-b border-slate-800/60 hover:bg-slate-800/40 ${activeUserId === t.user_id ? "bg-slate-800/60" : ""}`}
               >
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-sm text-slate-200 truncate">{t.email}</span>
+                  <span className="text-sm text-slate-200 truncate">{displayContact(t.email)}</span>
                   {t.unread_count > 0 && (
                     <span className="bg-rose-500 text-white text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1 shrink-0">
                       {t.unread_count}
@@ -103,7 +104,7 @@ export default function AdminMessaging() {
         ) : (
           <>
             <div className="px-4 py-3 border-b border-slate-800">
-              <p className="text-sm text-slate-200">{activeThread?.email}</p>
+              <p className="text-sm text-slate-200">{displayContact(activeThread?.email)}</p>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {loadingThread ? (
@@ -154,7 +155,7 @@ export default function AdminMessaging() {
                   onClick={() => { setShowNewThread(false); openThread(o.user_id); }}
                   className="w-full text-left px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800"
                 >
-                  {o.email}
+                  {displayContact(o.email)}
                 </button>
               ))}
             </div>
