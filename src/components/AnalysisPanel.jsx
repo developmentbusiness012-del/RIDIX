@@ -7,6 +7,7 @@ import { formatMontant, liabilityCategoryLabel } from "../constants";
 import { PremiumTeaser } from "./StockPanel";
 import { computeCompteResultat, computeCashFlowHistorique, computeCashFlowPrevisionnel, computeEndettementGlobal } from "../analyseFinanciereUtils";
 import { computeDSCR } from "../financingUtils";
+import { computeTreasury } from "../treasuryUtils";
 
 export default function AnalysisPanel({ companyId, plan, deviseBase, transactions, company, products = [], credits = [], assets = [], liabilities = [], liabilityPayments = [], cashAccounts = [], requests = [], capacity, dataLoading, onUpgrade, checkoutLoading, onNavigate }) {
   const [periodeCR, setPeriodeCR] = useState(12);
@@ -14,8 +15,11 @@ export default function AnalysisPanel({ companyId, plan, deviseBase, transaction
 
   const compteResultat = useMemo(() => computeCompteResultat(transactions, { months: periodeCR }), [transactions, periodeCR]);
 
+  // Même source que « Où est votre argent » et les rapports : le total inclut les soldes d'ouverture des comptes.
+  const treasury = useMemo(() => computeTreasury(transactions, cashAccounts), [transactions, cashAccounts]);
+
   const bilan = useMemo(() => {
-    const tresorerie = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);
+    const tresorerie = treasury.total;
     const valeurStock = products.reduce((s, p) => s + Number(p.quantity) * Number(p.cost_price || p.unit_price || 0), 0);
     const creancesClients = credits.filter((c) => c.type === "client" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
     const immobilisations = assets.reduce((s, a) => s + Number(a.valeur), 0);
@@ -25,17 +29,9 @@ export default function AnalysisPanel({ companyId, plan, deviseBase, transaction
     const totalPassifsDettes = dettesFournisseurs + dettesFinancieres;
     const capitauxPropres = totalActifs - totalPassifsDettes;
     return { tresorerie, valeurStock, creancesClients, immobilisations, totalActifs, dettesFournisseurs, dettesFinancieres, totalPassifsDettes, capitauxPropres };
-  }, [transactions, products, credits, assets, liabilities]);
+  }, [treasury, products, credits, assets, liabilities]);
 
-  const tresorerieParCompte = useMemo(() => {
-    const byAccount = {};
-    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
-    transactions.forEach((t) => {
-      if (!t.account_id || !(t.account_id in byAccount)) return;
-      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
-    });
-    return cashAccounts.map((a) => ({ ...a, solde: byAccount[a.id] ?? 0 }));
-  }, [cashAccounts, transactions]);
+  const tresorerieParCompte = treasury.accounts;
 
   const cashFlowHisto = useMemo(() => computeCashFlowHistorique(transactions, liabilityPayments, liabilities, { months: 12 }), [transactions, liabilityPayments, liabilities]);
   const cashFlowPrevisionnel = useMemo(() => computeCashFlowPrevisionnel(transactions, liabilities, { monthsAhead: horizonCF }), [transactions, liabilities, horizonCF]);
@@ -150,6 +146,12 @@ export default function AnalysisPanel({ companyId, plan, deviseBase, transaction
                   <p className={`font-mono ${a.solde < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(a.solde, deviseBase)}</p>
                 </div>
               ))}
+              {treasury.nonAffecte.mouvements > 0 && (
+                <div className="text-xs">
+                  <p className="text-slate-500">Non affecté</p>
+                  <p className={`font-mono ${treasury.nonAffecte.solde < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(treasury.nonAffecte.solde, deviseBase)}</p>
+                </div>
+              )}
             </div>
           </div>
         )}

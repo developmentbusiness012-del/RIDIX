@@ -50,6 +50,7 @@ import NotificationOptIn from "./NotificationOptIn";
 import { ConfirmDialog, PromptDialog, InfoDialog } from "./Dialogs";
 import { exportExcel, exportPdf } from "../exportUtils";
 import { computeAnalysis } from "../analysisUtils";
+import { computeTreasury } from "../treasuryUtils";
 import { computeCapacity, computeReadiness } from "../financingUtils";
 import { startPremiumCheckout } from "../payments";
 import { getPending, addPending, removePending, syncPendingForCompany, cacheGet, cacheSet, patchTxCache } from "../offlineQueue";
@@ -252,16 +253,10 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     }
   };
 
-  // Solde par compte = solde de départ + recettes - dépenses qui lui sont rattachées (en devise de référence).
-  const cashAccountBalances = useMemo(() => {
-    const byAccount = {};
-    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
-    transactions.forEach((t) => {
-      if (!t.account_id || !(t.account_id in byAccount)) return;
-      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
-    });
-    return byAccount;
-  }, [cashAccounts, transactions]);
+  // Trésorerie : source unique partagée avec le Bilan, l'Analyse et tous les rapports téléchargeables
+  // (solde par compte = ouverture + recettes − dépenses ; total = comptes + écritures non affectées).
+  const treasury = useMemo(() => computeTreasury(transactions, cashAccounts), [transactions, cashAccounts]);
+  const cashAccountBalances = useMemo(() => Object.fromEntries(treasury.accounts.map((a) => [a.id, a.solde])), [treasury]);
 
   const refreshTransactions = useCallback(async () => {
     const { data } = await supabase
@@ -519,6 +514,15 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     });
   }, [transactions, filterPeriode, filterType]);
 
+  // Contexte transmis aux rapports téléchargeables : période affichée + trésorerie complète (jamais filtrée).
+  const PERIOD_LABELS = { jour: "Aujourd'hui", semaine: "Cette semaine", mois: "Ce mois", trimestre: "3 derniers mois", annee: "Cette année", tout: "Toutes les écritures" };
+  const exportContext = {
+    cashAccounts,
+    allTransactions: transactions,
+    periodLabel: PERIOD_LABELS[filterPeriode] || "Toutes les écritures",
+    typeLabel: filterType !== "tous" ? TYPES_OP.find((t) => t.id === filterType)?.label || null : null,
+  };
+
   const kpis = useMemo(() => {
     const ca = filtered.filter((t) => t.sens === "recette").reduce((s, t) => s + Number(t.montant_base), 0);
     const dep = filtered.filter((t) => t.sens === "depense").reduce((s, t) => s + Number(t.montant_base), 0);
@@ -748,10 +752,10 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             <button onClick={() => setShowImport(true)} title="Importer CSV" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
               <UploadCloud size={13} /> <span className="hidden sm:inline">Importer</span>
             </button>
-            <button onClick={() => exportExcel(filtered, company)} title="Exporter en Excel" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+            <button onClick={() => exportExcel(filtered, company, exportContext)} title="Classeur Excel : synthèse, trésorerie par compte, écritures, catégories" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
               <FileSpreadsheet size={13} /> <span className="hidden sm:inline">Excel</span>
             </button>
-            <button onClick={() => exportPdf(filtered, company, kpis)} title="Exporter en PDF" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
+            <button onClick={() => exportPdf(filtered, company, kpis, exportContext)} title="Rapport PDF : synthèse, où est votre argent, catégories, écritures" className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
               <FileText size={13} /> <span className="hidden sm:inline">PDF</span>
             </button>
           </div>
@@ -768,7 +772,10 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         {/* ---------- Où est votre argent ---------- */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-serif text-sm text-slate-300 flex items-center gap-1.5"><Landmark size={14} className="text-amber-400" /> Où est votre argent</h3>
+            <div>
+              <h3 className="font-serif text-sm text-slate-300 flex items-center gap-1.5"><Landmark size={14} className="text-amber-400" /> Où est votre argent</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Trésorerie totale : <span className={`font-mono ${treasury.total < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(treasury.total, company.devise_base)}</span></p>
+            </div>
             {(isOwner || perms.canViewBilan) && (
               <button onClick={() => setShowCashAccountForm(true)} className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-amber-200 border border-amber-700/50 rounded-full px-2.5 py-1">
                 <Plus size={11} /> Compte
@@ -798,6 +805,13 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
                   </div>
                 );
               })}
+              {treasury.nonAffecte.mouvements > 0 && (
+                <div className="border border-dashed border-slate-700 rounded-md px-3 py-2.5" title="Écritures saisies sans compte de trésorerie (ou liées à un compte archivé)">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-1">Non affecté</div>
+                  <p className="text-sm text-slate-400 truncate">Sans compte ({treasury.nonAffecte.mouvements})</p>
+                  <p className={`font-mono text-base mt-0.5 ${treasury.nonAffecte.solde < 0 ? "text-rose-400" : "text-slate-100"}`}>{formatMontant(treasury.nonAffecte.solde, company.devise_base)}</p>
+                </div>
+              )}
             </div>
           )}
           {!isOwner && cashAccounts.length > 0 && (

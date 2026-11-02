@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import { formatMontant, LIABILITY_CATEGORIES } from "../constants";
 import { ConfirmDialog, PromptDialog } from "./Dialogs";
 import { memGet, memSet } from "../dataCache";
+import { computeTreasury } from "../treasuryUtils";
 
 const ASSET_CATEGORIES = [
   { id: "equipement", label: "Équipement" },
@@ -50,8 +51,11 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
     if (loadedFor.current === companyId) memSet(cacheKey, { assets, liabilities, products, credits });
   }, [assets, liabilities, products, credits]);
 
+  // Même source que « Où est votre argent » et les rapports : le total inclut les soldes d'ouverture des comptes.
+  const treasury = useMemo(() => computeTreasury(transactions, cashAccounts), [transactions, cashAccounts]);
+
   const summary = useMemo(() => {
-    const tresorerie = transactions.reduce((s, t) => s + (t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base)), 0);
+    const tresorerie = treasury.total;
     const valeurStock = products.reduce((s, p) => s + Number(p.quantity) * Number(p.cost_price || p.unit_price || 0), 0);
     const creancesClients = credits.filter((c) => c.type === "client" && c.statut === "ouvert").reduce((s, c) => s + (Number(c.montant) - Number(c.montant_paye)), 0);
     const immobilisations = assets.reduce((s, a) => s + Number(a.valeur), 0);
@@ -62,18 +66,9 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
     const totalPassifs = dettesFournisseurs + passifsFinanciers;
 
     return { tresorerie, valeurStock, creancesClients, immobilisations, totalActifs, dettesFournisseurs, passifsFinanciers, totalPassifs, patrimoineNet: totalActifs - totalPassifs };
-  }, [transactions, products, credits, assets, liabilities]);
+  }, [treasury, products, credits, assets, liabilities]);
 
-  // Répartition de la trésorerie par compte (Bloc "Où est votre argent", synchronisé avec l'onglet Écriture).
-  const tresorerieParCompte = useMemo(() => {
-    const byAccount = {};
-    cashAccounts.forEach((a) => { byAccount[a.id] = Number(a.solde_initial) || 0; });
-    transactions.forEach((t) => {
-      if (!t.account_id || !(t.account_id in byAccount)) return;
-      byAccount[t.account_id] += t.sens === "recette" ? Number(t.montant_base) : -Number(t.montant_base);
-    });
-    return cashAccounts.map((a) => ({ ...a, solde: byAccount[a.id] ?? 0 }));
-  }, [cashAccounts, transactions]);
+  const tresorerieParCompte = treasury.accounts;
 
   const addAsset = async (payload) => {
     const { data, error } = await supabase.from("assets").insert({ company_id: companyId, ...payload }).select().single();
@@ -153,6 +148,12 @@ export default function BilanPanel({ companyId, plan, isOwner, deviseBase, trans
                 <p className={`font-mono ${a.solde < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(a.solde, deviseBase)}</p>
               </div>
             ))}
+            {treasury.nonAffecte.mouvements > 0 && (
+              <div className="text-xs">
+                <p className="text-slate-500">Non affecté</p>
+                <p className={`font-mono ${treasury.nonAffecte.solde < 0 ? "text-rose-400" : "text-slate-200"}`}>{formatMontant(treasury.nonAffecte.solde, deviseBase)}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
