@@ -10,6 +10,14 @@ import { memClear } from "./dataCache";
 import { isPhoneEmail } from "./phoneAuth";
 
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
+// Lien de parrainage d'un commercial (…/?ref=MARC482) : le code est mémorisé et l'inscription s'ouvre directement.
+let arrivedWithReferral = false;
+try {
+  const ref = new URLSearchParams(window.location.search).get("ref");
+  const clean = (ref || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 20).toUpperCase();
+  if (clean) { localStorage.setItem("ridix_ref", clean); arrivedWithReferral = true; }
+} catch { /* ignoré */ }
+
 const loadDashboard = () => import("./components/Dashboard");
 const Dashboard = lazy(loadDashboard);
 const PhoneGate = lazy(() => import("./components/PhoneGate"));
@@ -96,8 +104,8 @@ export default function App() {
   const [profile, setProfile] = useState(null); // { role, plan, onboarded, isAdmin }
   const [resolving, setResolving] = useState(false);
   const [adminView, setAdminView] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState("signin");
+  const [showAuth, setShowAuth] = useState(arrivedWithReferral);
+  const [authMode, setAuthMode] = useState(arrivedWithReferral ? "signup" : "signin");
   const [showPaymentReturn, setShowPaymentReturn] = useState(
     () => new URLSearchParams(window.location.search).get("paiement") === "verification"
   );

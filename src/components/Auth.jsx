@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
-import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe, Phone } from "lucide-react";
+import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe, Phone, Gift, CheckCircle2 } from "lucide-react";
 import PhoneInput from "./PhoneInput";
 import { normalizePhone, phoneToEmail, DIAL_CODES, DEFAULT_DIAL } from "../phoneAuth";
 import ForgotPassword from "./ForgotPassword";
@@ -21,6 +21,23 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [country, setCountry] = useState("Cameroun");
   const [companyCode, setCompanyCode] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // Code de parrainage donné par un commercial (facultatif) — prérempli par un lien « …/?ref=CODE »
+  const [referral, setReferral] = useState(() => { try { return localStorage.getItem("ridix_ref") || ""; } catch { return ""; } });
+  const [referralInfo, setReferralInfo] = useState({ status: "idle", name: "" }); // idle | checking | valid | invalid
+  const referralCode = referral.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+
+  useEffect(() => {
+    if (mode !== "signup" || referralCode.length < 4) { setReferralInfo({ status: "idle", name: "" }); return; }
+    setReferralInfo({ status: "checking", name: "" });
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data, error: err } = await supabase.rpc("check_referral_code", { p_code: referralCode });
+      if (cancelled) return;
+      if (err) setReferralInfo({ status: "idle", name: "" }); // réseau : on ne bloque pas la saisie
+      else setReferralInfo(data ? { status: "valid", name: data } : { status: "invalid", name: "" });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [referralCode, mode]);
   const [showLegal, setShowLegal] = useState(null); // 'cgu' | 'confidentialite' | null
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,15 +60,24 @@ export default function Auth({ initialMode = "signin", onBack }) {
       setError("Numéro de téléphone invalide. Vérifiez l'indicatif du pays et le numéro.");
       return;
     }
+    // Un code saisi doit être valable : sinon le commercial perdrait sa commission sans que personne ne le voie.
+    if (mode === "signup" && referralCode) {
+      const { data: refName, error: refErr } = await supabase.rpc("check_referral_code", { p_code: referralCode });
+      if (!refErr && !refName) {
+        setError("Code de parrainage introuvable ou désactivé. Corrigez-le ou laissez le champ vide.");
+        return;
+      }
+    }
     setLoading(true);
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email: phoneToEmail(key),
           password,
-          options: { data: { account_type: "owner", company_name: companyName, country, phone: "+" + key } },
+          options: { data: { account_type: "owner", company_name: companyName, country, phone: "+" + key, ...(referralCode ? { referral_code: referralCode } : {}) } },
         });
         if (error) throw error;
+        try { localStorage.removeItem("ridix_ref"); } catch { /* ignoré */ }
       } else if (mode === "employee") {
         const { data, error } = await supabase.auth.signUp({
           email: phoneToEmail(key),
@@ -250,6 +276,25 @@ export default function Auth({ initialMode = "signin", onBack }) {
                 </div>
               )}
             </div>
+
+            {mode === "signup" && (
+              <div>
+                <label className="flex items-center gap-1.5 text-xs text-slate-400 mb-1"><Gift size={12} /> Code de parrainage <span className="text-slate-600">(facultatif)</span></label>
+                <input
+                  value={referral}
+                  onChange={(e) => setReferral(e.target.value.toUpperCase())}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  maxLength={20}
+                  className={`w-full bg-slate-800 border rounded-md px-3 py-2 text-sm font-mono tracking-wider uppercase ${referralInfo.status === "valid" ? "border-emerald-500/60" : referralInfo.status === "invalid" ? "border-rose-500/60" : "border-slate-700"}`}
+                  placeholder="Ex : MARC482"
+                />
+                {referralInfo.status === "checking" && <p className="text-[11px] text-slate-500 mt-1">Vérification…</p>}
+                {referralInfo.status === "valid" && <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1"><CheckCircle2 size={12} /> Code valide — parrainé par {referralInfo.name}</p>}
+                {referralInfo.status === "invalid" && <p className="text-[11px] text-rose-400 mt-1">Code introuvable. Vérifiez-le auprès de votre commercial.</p>}
+                {referralInfo.status === "idle" && <p className="text-[11px] text-slate-500 mt-1">Donné par le commercial RIDIX qui vous a présenté l'application.</p>}
+              </div>
+            )}
 
             {mode !== "signin" && (
               <label className="flex items-start gap-2.5 text-xs text-slate-400 cursor-pointer select-none">
