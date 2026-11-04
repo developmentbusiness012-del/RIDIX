@@ -2,6 +2,7 @@ import { computeCompteResultat, computeCashFlowHistorique, computeCashFlowPrevis
 import { computeDSCR } from "./financingUtils";
 import { computeTreasury, computeMonthlyTreasury, treasuryByType } from "./treasuryUtils";
 import { liabilityCategoryLabel, cashAccountTypeLabel } from "./constants";
+import { SOURCE_LABELS, categoryLabel } from "./financeLabels";
 
 // ======================================================================================
 //  Rapports téléchargeables RIDIX
@@ -691,4 +692,216 @@ export async function exportDossierFinancement(transactions, products, credits, 
 
   pageFooters(doc, `${company.name} — Dossier de financement`, 2);
   doc.save(`dossier_financement_${slug(company.name)}.pdf`);
+}
+
+
+// ======================================================================================
+//  4. RAPPORT D'ACTIVITÉ RIDIX (administrateur) : finances, clients, offres, acquisition, journal
+// ======================================================================================
+const monthLabel = (ym) => {
+  const [y, m] = String(ym).split("-").map(Number);
+  return `${["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"][m - 1]} ${y}`;
+};
+
+function reportFigures(report) {
+  const c = report.clients;
+  const premium = num(c.premium);
+  const owners = num(c.owners);
+  const paying = num(c.premium_paying);
+  const subRevenue = (report.by_offer || []).reduce((s, o) => s + num(o.revenue), 0);
+  const subSales = (report.by_offer || []).reduce((s, o) => s + num(o.sales), 0);
+  const refRevenue = num(report.agents.referred_revenue_period);
+  return {
+    premium, owners, paying,
+    offered: Math.max(0, premium - paying),
+    conversion: owners > 0 ? (premium / owners) * 100 : 0,
+    margin: num(report.revenue) > 0 ? (num(report.net) / num(report.revenue)) * 100 : null,
+    subRevenue, subSales,
+    avgTicket: subSales > 0 ? subRevenue / subSales : 0,
+    refRevenue,
+    refShare: subRevenue > 0 ? (refRevenue / subRevenue) * 100 : null,
+    directRevenue: Math.max(0, subRevenue - refRevenue),
+  };
+}
+
+export async function exportAdminReportPdf(report, ledger = [], periodLabel = "Tout") {
+  const { jsPDF, autoTable } = await loadPdf();
+  const doc = new jsPDF();
+  const flow = makeFlow(doc, autoTable);
+  const D = "FCFA";
+  const f = reportFigures(report);
+  const c = report.clients;
+
+  doc.setFillColor(...C.dark);
+  doc.rect(0, 0, flow.width, 42, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.text("RAPPORT D'ACTIVITÉ", 14, 14);
+  doc.setFontSize(20);
+  doc.text("RIDIX", 14, 26);
+  doc.setFontSize(9);
+  doc.setTextColor(...C.light);
+  doc.text(`Période : ${periodLabel}  ·  Devise : ${D}  ·  Généré le ${frDate()}`, 14, 35);
+  flow.y = 52;
+
+  // 1. Synthèse financière
+  flow.section("Synthèse financière");
+  flow.kv([
+    ["Chiffre d'affaires", formatMontant(report.revenue, D)],
+    ["Dépenses", formatMontant(-num(report.expenses), D)],
+    ["Résultat net", formatMontant(report.net, D)],
+    ["Marge nette", f.margin != null ? `${f.margin.toFixed(1)} %` : "—"],
+    ["Abonnements vendus", `${f.subSales}`],
+    ["Panier moyen d'un abonnement", f.subSales > 0 ? formatMontant(f.avgTicket, D) : "—"],
+  ], { bold: [2] });
+
+  // 2. Clients
+  flow.section("Clients");
+  flow.kv([
+    ["Comptes propriétaires", `${c.owners}`],
+    ["Clients Premium", `${c.premium}  (${c.premium_paying} payants, ${f.offered} offerts)`],
+    ["Clients Freemium", `${c.freemium}`],
+    ["Taux de conversion (Freemium vers Premium)", `${f.conversion.toFixed(1)} %`],
+    ["Nouveaux inscrits (période)", `${c.new_owners_period}`],
+    ["Nouveaux clients payants (période)", `${c.new_payers_period}`],
+    ["Clients payants depuis le début", `${c.paying_clients_total}`],
+    ["Comptes actifs ces 30 derniers jours", `${c.active_30d}`],
+    ["Premium arrivant à échéance sous 30 jours", `${c.premium_expiring_30d}`],
+    ["Employés (comptes liés)", `${c.employees}`],
+  ]);
+
+  // 3. Offres
+  flow.section("Offres & rentabilité");
+  if ((report.by_offer || []).length === 0) {
+    flow.para("Aucun abonnement vendu sur cette période.");
+  } else {
+    flow.table({
+      head: [["Offre", "Ventes", "Ticket moyen", "Chiffre d'affaires", "Commissions", "Net"]],
+      body: report.by_offer.map((o) => [o.label, `${o.sales}`, formatMontant(o.avg_ticket, ""), formatMontant(o.revenue, ""), formatMontant(o.commission_cost, ""), formatMontant(o.net, "")]),
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right", fontStyle: "bold" } },
+    });
+    const best = report.best_offer;
+    if (best) flow.para(`Offre la plus rentable : ${best.label} — ${formatMontant(best.net, D)} net (${best.sales} vente(s)).`);
+    flow.note("Net = chiffre d'affaires moins les commissions dues aux commerciaux sur les clients qu'ils ont parrainés.");
+  }
+
+  // 4. Revenus et dépenses
+  flow.section("Revenus & dépenses");
+  flow.h2("Chiffre d'affaires par source");
+  if ((report.revenue_by_source || []).length === 0) flow.para("Aucun revenu sur cette période.");
+  else flow.table({ head: [["Source", "Écritures", "Montant"]], body: report.revenue_by_source.map((r) => [SOURCE_LABELS[r.source] || r.source, `${r.entries}`, formatMontant(r.total, D)]), columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } } });
+  flow.h2("Dépenses par catégorie");
+  if ((report.expense_by_category || []).length === 0) flow.para("Aucune dépense sur cette période.");
+  else {
+    const totalExp = report.expense_by_category.reduce((s, r) => s + num(r.total), 0) || 1;
+    flow.table({
+      head: [["Catégorie", "Écritures", "Montant", "Part"]],
+      body: report.expense_by_category.map((r) => [categoryLabel(r.category), `${r.entries}`, formatMontant(r.total, D), `${((num(r.total) / totalExp) * 100).toFixed(0)} %`]),
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    });
+  }
+
+  // 5. Évolution mensuelle
+  flow.section("Évolution mensuelle (12 mois)");
+  flow.table({
+    head: [["Mois", "Revenus", "Dépenses", "Résultat"]],
+    body: (report.monthly || []).map((m) => [monthLabel(m.month), formatMontant(m.revenue, ""), formatMontant(-num(m.expenses), ""), signed(num(m.revenue) - num(m.expenses), "")]),
+    styles: { fontSize: 8.5 },
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right", fontStyle: "bold" } },
+  });
+
+  // 6. Acquisition commerciale
+  flow.section("Acquisition commerciale");
+  flow.kv([
+    ["Commerciaux actifs", `${report.agents.active} / ${report.agents.count}`],
+    ["Inscriptions parrainées (période)", `${report.agents.referred_signups_period}`],
+    ["Chiffre d'affaires via parrainage", formatMontant(f.refRevenue, D)],
+    ["Part du CA abonnements", f.refShare != null ? `${f.refShare.toFixed(0)} %` : "—"],
+    ["Chiffre d'affaires acquisition directe", formatMontant(f.directRevenue, D)],
+    ["Commissions versées (période)", formatMontant(-num(report.agents.commissions_paid_period), D)],
+  ]);
+
+  // 7. Journal
+  flow.section("Journal des opérations", { forceNewPage: true });
+  if (ledger.length === 0) flow.para("Aucune opération sur cette période.");
+  else {
+    flow.table({
+      head: [["Date", "Opération", "Détail", "Source", "Montant"]],
+      body: ledger.map((e) => [
+        frDate(e.occurred_on), categoryLabel(e.category) + (e.client ? ` · ${e.client}` : ""), e.description || "—",
+        e.source === "maketou" ? "Auto" : e.source === "commission" ? "Parrainage" : "Manuel",
+        `${e.kind === "revenue" ? "+" : "-"}${formatMontant(e.amount, "")}`,
+      ]),
+      styles: { fontSize: 7.5 },
+      columnStyles: { 4: { halign: "right", fontStyle: "bold" } },
+      didParseCell: (d) => {
+        if (d.section === "body" && d.column.index === 4) d.cell.styles.textColor = String(d.cell.raw).startsWith("+") ? [22, 101, 52] : [190, 18, 60];
+      },
+    });
+  }
+
+  pageFooters(doc, "RIDIX — Rapport d'activité");
+  doc.save(`rapport_ridix_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+export async function exportAdminReportExcel(report, ledger = [], periodLabel = "Tout") {
+  const XLSX = await import("xlsx");
+  const f = reportFigures(report);
+  const c = report.clients;
+  const wb = XLSX.utils.book_new();
+  const add = (name, aoa, cols) => {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = cols.map((wch) => ({ wch }));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+
+  add("Synthèse", [
+    ["RIDIX — Rapport d'activité"],
+    ["Période", periodLabel],
+    ["Généré le", frDate()],
+    [],
+    ["FINANCES (FCFA)"],
+    ["Chiffre d'affaires", Math.round(num(report.revenue))],
+    ["Dépenses", Math.round(num(report.expenses))],
+    ["Résultat net", Math.round(num(report.net))],
+    ["Marge nette (%)", f.margin != null ? Number(f.margin.toFixed(1)) : ""],
+    ["Abonnements vendus", f.subSales],
+    ["Panier moyen", Math.round(f.avgTicket)],
+    ["Offre la plus rentable", report.best_offer ? report.best_offer.label : ""],
+    [],
+    ["CLIENTS"],
+    ["Comptes propriétaires", num(c.owners)],
+    ["Premium", num(c.premium)],
+    ["  dont payants", num(c.premium_paying)],
+    ["  dont offerts", f.offered],
+    ["Freemium", num(c.freemium)],
+    ["Taux de conversion (%)", Number(f.conversion.toFixed(1))],
+    ["Nouveaux inscrits (période)", num(c.new_owners_period)],
+    ["Nouveaux clients payants (période)", num(c.new_payers_period)],
+    ["Actifs sur 30 jours", num(c.active_30d)],
+    ["Premium expirant sous 30 jours", num(c.premium_expiring_30d)],
+    [],
+    ["ACQUISITION COMMERCIALE"],
+    ["Commerciaux actifs", num(report.agents.active)],
+    ["Inscriptions parrainées", num(report.agents.referred_signups_period)],
+    ["CA via parrainage", Math.round(f.refRevenue)],
+    ["CA acquisition directe", Math.round(f.directRevenue)],
+    ["Commissions versées", Math.round(num(report.agents.commissions_paid_period))],
+  ], [38, 30]);
+
+  add("Offres", [["Offre", "Ventes", "Ticket moyen", "CA", "Commissions", "Net"],
+    ...(report.by_offer || []).map((o) => [o.label, num(o.sales), num(o.avg_ticket), num(o.revenue), num(o.commission_cost), num(o.net)])], [28, 10, 14, 14, 14, 14]);
+
+  add("Dépenses", [["Catégorie", "Écritures", "Montant (FCFA)"],
+    ...(report.expense_by_category || []).map((r) => [categoryLabel(r.category), num(r.entries), num(r.total)])], [32, 10, 16]);
+
+  add("Mensuel", [["Mois", "Revenus", "Dépenses", "Résultat"],
+    ...(report.monthly || []).map((m) => [monthLabel(m.month), num(m.revenue), num(m.expenses), num(m.revenue) - num(m.expenses)])], [20, 14, 14, 14]);
+
+  add("Journal", [["Date", "Type", "Catégorie", "Client", "Détail", "Source", "Montant (FCFA)"],
+    ...ledger.map((e) => [e.occurred_on, e.kind === "revenue" ? "Revenu" : "Dépense", categoryLabel(e.category), e.client || "", e.description || "",
+      e.source === "maketou" ? "Auto (Maketou)" : e.source === "commission" ? "Parrainage" : "Manuel", (e.kind === "revenue" ? 1 : -1) * num(e.amount)])],
+    [12, 10, 28, 24, 40, 16, 16]);
+
+  XLSX.writeFile(wb, `rapport_ridix_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

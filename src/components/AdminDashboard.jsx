@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Users, UserCheck, Crown, Gift, Building2, Receipt, ArrowLeft, Loader2, BarChart3, MessageCircle, Globe2, Handshake } from "lucide-react";
+import { Users, UserCheck, Crown, Gift, Building2, Receipt, ArrowLeft, Loader2, BarChart3, MessageCircle, Globe2, Handshake, Banknote } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import AdminMessaging from "./AdminMessaging";
 import AdminReferrals from "./AdminReferrals";
+import AdminFinances from "./AdminFinances";
 import { InfoDialog, ConfirmDialog } from "./Dialogs";
 import { displayContact } from "../phoneAuth";
 
@@ -116,6 +117,10 @@ export default function AdminDashboard({ onBack }) {
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border ${tab === "messages" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400"}`}>
               <MessageCircle size={13} /> Messagerie
             </button>
+            <button onClick={() => setTab("finances")}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border ${tab === "finances" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400"}`}>
+              <Banknote size={13} /> Finances
+            </button>
             <button onClick={() => setTab("referrals")}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border ${tab === "referrals" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400"}`}>
               <Handshake size={13} /> Parrainage
@@ -125,6 +130,8 @@ export default function AdminDashboard({ onBack }) {
 
         {tab === "messages" ? (
           <AdminMessaging />
+        ) : tab === "finances" ? (
+          <AdminFinances />
         ) : tab === "referrals" ? (
           <AdminReferrals />
         ) : (
