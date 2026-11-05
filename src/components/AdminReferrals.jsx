@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../supabaseClient";
 import { formatMontant } from "../constants";
+import { Sheet as Modal, Kpi, Card, Chips, SectionHeader, inputCls, btnPrimary, btnGhost } from "./AdminUI";
 import {
   Loader2, Plus, Copy, Check, Link2, MessageCircle, Download, X, RefreshCw, UserPlus, Pencil, Trash2, Handshake, Users, TrendingUp, Wallet,
 } from "lucide-react";
@@ -48,28 +49,13 @@ function CopyButton({ text, label, icon: Icon = Copy, className = "" }) {
     <button
       type="button"
       onClick={async () => { if (await copyText(text)) { setDone(true); setTimeout(() => setDone(false), 1500); } }}
-      className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-slate-700 text-slate-300 hover:border-amber-500/60 hover:text-amber-300 ${className}`}
+      className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-2 sm:px-2 sm:py-1 rounded-md border border-slate-700 text-slate-300 hover:border-amber-500/60 hover:text-amber-300 active:bg-slate-800 ${className}`}
     >
       {done ? <Check size={11} className="text-emerald-400" /> : <Icon size={11} />} {done ? "Copié" : label}
     </button>
   );
 }
 
-function Modal({ title, onClose, children, wide = false }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-start sm:items-center justify-center p-3 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-slate-900 border border-slate-700 rounded-lg w-full ${wide ? "max-w-3xl" : "max-w-md"} my-6`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-          <h3 className="font-serif text-slate-100">{title}</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={16} /></button>
-        </div>
-        <div className="p-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-const inputCls = "w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100";
 
 export default function AdminReferrals() {
   const [period, setPeriod] = useState("month");
@@ -117,34 +103,17 @@ export default function AdminReferrals() {
 
   return (
     <div className="space-y-4">
-      {/* En-tête + actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-lg text-slate-100 flex items-center gap-2"><Handshake size={18} className="text-amber-400" /> Commerciaux & parrainage</h2>
-          <p className="text-xs text-slate-500">Générez un code par commercial, suivez les inscriptions parrainées et calculez les commissions.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setShowAssign(true)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500">
-            <UserPlus size={13} /> Rattacher un client
-          </button>
-          <button onClick={exportCsv} disabled={agents.length === 0} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500 disabled:opacity-40">
-            <Download size={13} /> Exporter (CSV)
-          </button>
-          <button onClick={() => setEditing("new")} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-amber-400 text-slate-950 font-medium hover:bg-amber-300">
-            <Plus size={13} /> Nouveau commercial
-          </button>
-        </div>
-      </div>
+      <SectionHeader icon={Handshake} title="Commerciaux & parrainage" subtitle="Un code par commercial, suivi des inscriptions parrainées et des commissions.">
+        <button onClick={() => setEditing("new")} className={`col-span-2 sm:col-span-1 sm:order-3 ${btnPrimary} !py-2.5 !text-xs`}>
+          <Plus size={14} /> Nouveau commercial
+        </button>
+        <button onClick={() => setShowAssign(true)} className={`sm:order-1 ${btnGhost}`}><UserPlus size={14} /> Rattacher un client</button>
+        <button onClick={exportCsv} disabled={agents.length === 0} className={`sm:order-2 ${btnGhost}`}><Download size={14} /> Exporter (CSV)</button>
+      </SectionHeader>
 
-      {/* Période */}
-      <div className="flex flex-wrap items-center gap-2">
-        {PERIODS.map((p) => (
-          <button key={p.id} onClick={() => setPeriod(p.id)}
-            className={`text-xs px-3 py-1.5 rounded-md border ${period === p.id ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
-            {p.label}
-          </button>
-        ))}
-        <button onClick={() => { setLoading(true); load(); }} className="text-slate-500 hover:text-slate-300 p-1.5" title="Actualiser"><RefreshCw size={14} /></button>
+      <div className="flex items-center gap-2">
+        <Chips options={PERIODS} value={period} onChange={setPeriod} className="flex-1 min-w-0" />
+        <button onClick={() => { setLoading(true); load(); }} className="hidden sm:block text-slate-500 hover:text-slate-300 p-2 shrink-0" aria-label="Actualiser"><RefreshCw size={15} /></button>
       </div>
 
       {error && <p className="text-sm text-rose-400 bg-rose-400/10 border border-rose-400/30 rounded-md px-3 py-2">{error}</p>}
@@ -154,67 +123,100 @@ export default function AdminReferrals() {
       ) : data && (
         <>
           {/* Indicateurs */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
             <Kpi icon={Handshake} label="Commerciaux actifs" value={`${totals.active} / ${agents.length}`} />
             <Kpi icon={Users} label="Inscrits parrainés" value={totals.signups} sub="sur la période" />
             <Kpi icon={TrendingUp} label="CA Premium parrainé" value={formatMontant(totals.revenue, DEVISE)} sub="sur la période" />
             <Kpi icon={Wallet} label="Commissions" value={formatMontant(totals.commission, DEVISE)} sub="sur la période" />
-            <Kpi icon={Wallet} label="Solde à payer" value={formatMontant(totals.balance, DEVISE)} sub="cumul, tous commerciaux" accent="text-amber-300" />
+            <Kpi icon={Wallet} label="Solde à payer" value={formatMontant(totals.balance, DEVISE)} sub="cumul, tous commerciaux" tone="text-amber-300" />
           </div>
 
-          {/* Tableau des commerciaux */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-md overflow-hidden">
-            {agents.length === 0 ? (
-              <div className="p-8 text-center text-sm text-slate-400">
-                Aucun commercial pour le moment. Cliquez sur « Nouveau commercial » pour générer son code de parrainage.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
-                      <th className="px-3 py-2 font-medium">Commercial</th>
-                      <th className="px-3 py-2 font-medium">Code</th>
-                      <th className="px-3 py-2 font-medium text-right">Inscrits</th>
-                      <th className="px-3 py-2 font-medium text-right">Actifs</th>
-                      <th className="px-3 py-2 font-medium text-right">Premium</th>
-                      <th className="px-3 py-2 font-medium text-right">CA période</th>
-                      <th className="px-3 py-2 font-medium text-right">Commission</th>
-                      <th className="px-3 py-2 font-medium text-right">Solde à payer</th>
-                      <th className="px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agents.map((a) => (
-                      <tr key={a.id} className={`border-b border-slate-800/60 hover:bg-slate-800/30 ${a.active ? "" : "opacity-50"}`}>
-                        <td className="px-3 py-2.5">
-                          <p className="text-slate-100">{a.name}{!a.active && <span className="ml-2 text-[10px] uppercase text-slate-500 border border-slate-700 rounded px-1">désactivé</span>}</p>
-                          <p className="text-[11px] text-slate-500">{a.phone || "—"} · {Number(a.commission_rate)} %</p>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <p className="font-mono text-amber-300 tracking-wider">{a.code}</p>
-                          <div className="flex gap-1 mt-1">
-                            <CopyButton text={a.code} label="Code" />
-                            <CopyButton text={inviteLink(a.code)} label="Lien" icon={Link2} />
-                          </div>
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{a.signups_period}<span className="text-slate-600"> / {a.signups_total}</span></td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{a.actives_total}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{a.premium_now}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{formatMontant(a.revenue_period, "")}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{formatMontant(a.commission_period, "")}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${Number(a.balance) > 0 ? "text-amber-300" : "text-slate-400"}`}>{formatMontant(a.balance, DEVISE)}</td>
-                        <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                          <button onClick={() => setDetail(a)} className="text-[11px] px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500 mr-1.5">Suivi</button>
-                          <button onClick={() => setEditing(a)} className="p-1.5 text-slate-500 hover:text-slate-200" title="Modifier"><Pencil size={13} /></button>
-                        </td>
+          {/* Commerciaux */}
+          {agents.length === 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-8 text-center text-sm text-slate-400">
+              Aucun commercial pour le moment. Touchez « Nouveau commercial » pour générer son code de parrainage.
+            </div>
+          ) : (
+            <>
+              <ul className="md:hidden space-y-3">
+                {agents.map((a) => (
+                  <li key={a.id} className={`bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 ${a.active ? "" : "opacity-60"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-100 font-medium truncate">{a.name}</p>
+                        <p className="text-[11px] text-slate-500">{a.phone || "—"} · commission {Number(a.commission_rate)} %{!a.active && " · désactivé"}</p>
+                      </div>
+                      <button onClick={() => setEditing(a)} className="p-2 -mr-1.5 -mt-1 text-slate-500 active:text-slate-200" aria-label="Modifier"><Pencil size={15} /></button>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-2.5 bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-2">
+                      <span className="font-mono text-amber-300 tracking-widest text-lg">{a.code}</span>
+                      <div className="flex gap-1.5">
+                        <CopyButton text={a.code} label="Code" />
+                        <CopyButton text={inviteLink(a.code)} label="Lien" icon={Link2} />
+                      </div>
+                    </div>
+                    <dl className="grid grid-cols-4 gap-2 mt-3 text-center">
+                      {[["Inscrits", `${a.signups_period}`, `/ ${a.signups_total}`], ["Actifs", a.actives_total], ["Premium", a.premium_now], ["Payants", a.paying_total]].map(([l, v, sub]) => (
+                        <div key={l}><dt className="text-[10px] text-slate-500">{l}</dt><dd className="font-mono text-sm text-slate-100">{v}{sub && <span className="text-slate-600 text-[10px]"> {sub}</span>}</dd></div>
+                      ))}
+                    </dl>
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800">
+                      <div><p className="text-[10px] text-slate-500">Commission (période)</p><p className="font-mono text-sm text-slate-100 tabular-nums">{formatMontant(a.commission_period, DEVISE)}</p></div>
+                      <div className="text-right"><p className="text-[10px] text-slate-500">Reste à payer</p><p className={`font-mono text-sm tabular-nums ${Number(a.balance) > 0 ? "text-amber-300" : "text-slate-400"}`}>{formatMontant(a.balance, DEVISE)}</p></div>
+                    </div>
+                    <button onClick={() => setDetail(a)} className="w-full mt-3 border border-slate-700 active:bg-slate-800 text-slate-200 rounded-lg py-2.5 text-xs">Voir le suivi & les versements</button>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="hidden md:block bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
+                        <th className="px-3 py-2 font-medium">Commercial</th>
+                        <th className="px-3 py-2 font-medium">Code</th>
+                        <th className="px-3 py-2 font-medium text-right">Inscrits</th>
+                        <th className="px-3 py-2 font-medium text-right">Actifs</th>
+                        <th className="px-3 py-2 font-medium text-right">Premium</th>
+                        <th className="px-3 py-2 font-medium text-right">CA période</th>
+                        <th className="px-3 py-2 font-medium text-right">Commission</th>
+                        <th className="px-3 py-2 font-medium text-right">Solde à payer</th>
+                        <th className="px-3 py-2" />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {agents.map((a) => (
+                        <tr key={a.id} className={`border-b border-slate-800/60 hover:bg-slate-800/30 ${a.active ? "" : "opacity-50"}`}>
+                          <td className="px-3 py-2.5">
+                            <p className="text-slate-100">{a.name}{!a.active && <span className="ml-2 text-[10px] uppercase text-slate-500 border border-slate-700 rounded px-1">désactivé</span>}</p>
+                            <p className="text-[11px] text-slate-500">{a.phone || "—"} · {Number(a.commission_rate)} %</p>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <p className="font-mono text-amber-300 tracking-wider">{a.code}</p>
+                            <div className="flex gap-1 mt-1">
+                              <CopyButton text={a.code} label="Code" />
+                              <CopyButton text={inviteLink(a.code)} label="Lien" icon={Link2} />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{a.signups_period}<span className="text-slate-600"> / {a.signups_total}</span></td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{a.actives_total}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{a.premium_now}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{formatMontant(a.revenue_period, "")}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{formatMontant(a.commission_period, "")}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${Number(a.balance) > 0 ? "text-amber-300" : "text-slate-400"}`}>{formatMontant(a.balance, DEVISE)}</td>
+                          <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                            <button onClick={() => setDetail(a)} className="text-[11px] px-2.5 py-1.5 rounded-md border border-slate-700 text-slate-300 hover:border-slate-500 mr-1.5">Suivi</button>
+                            <button onClick={() => setEditing(a)} className="p-1.5 text-slate-500 hover:text-slate-200" title="Modifier"><Pencil size={13} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           <div className="text-[11px] text-slate-500 space-y-1">
             <p>
@@ -244,16 +246,6 @@ export default function AdminReferrals() {
         />
       )}
       {showAssign && <AssignDialog agents={agents.filter((a) => a.active)} onClose={() => setShowAssign(false)} onDone={() => { setShowAssign(false); load(); }} />}
-    </div>
-  );
-}
-
-function Kpi({ icon: Icon, label, value, sub, accent = "text-slate-50" }) {
-  return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-md px-3 py-3">
-      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-1"><Icon size={12} className="text-amber-400" /> {label}</div>
-      <p className={`font-mono text-lg tabular-nums ${accent}`}>{value}</p>
-      {sub && <p className="text-[10px] text-slate-600 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -312,7 +304,7 @@ function AgentForm({ agent, onClose, onSaved }) {
         )}
         {isNew && <p className="text-[11px] text-slate-500">Un code simple et unique sera généré automatiquement (ex : MARC482).</p>}
         {error && <p className="text-xs text-rose-400">{error}</p>}
-        <button type="submit" disabled={saving} className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 font-medium rounded-md py-2.5 text-sm flex items-center justify-center gap-2">
+        <button type="submit" disabled={saving} className={`w-full ${btnPrimary}`}>
           {saving && <Loader2 size={14} className="animate-spin" />} {isNew ? "Générer le code" : "Enregistrer"}
         </button>
       </form>
@@ -424,33 +416,50 @@ function AgentDetail({ agent, onClose, onChanged, onNewCode }) {
           ) : detail.referrals.length === 0 ? (
             <p className="text-xs text-slate-500">Aucun client parrainé pour le moment.</p>
           ) : (
-            <div className="overflow-x-auto border border-slate-800 rounded-md">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-[10px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
-                    <th className="px-3 py-2 font-medium">Entreprise</th>
-                    <th className="px-3 py-2 font-medium">Téléphone</th>
-                    <th className="px-3 py-2 font-medium">Inscrit le</th>
-                    <th className="px-3 py-2 font-medium">Statut</th>
-                    <th className="px-3 py-2 font-medium text-right">Paiements</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.referrals.map((r) => {
-                    const [label, cls] = statusOf(r);
-                    return (
-                      <tr key={r.user_id} className="border-b border-slate-800/60">
-                        <td className="px-3 py-2 text-slate-200">{r.company || "—"}{r.source === "admin" && <span className="ml-1.5 text-[9px] text-slate-500">(rattaché)</span>}</td>
-                        <td className="px-3 py-2 text-slate-400">{r.phone || "—"}</td>
-                        <td className="px-3 py-2 text-slate-400">{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
-                        <td className="px-3 py-2"><span className={`border rounded px-1.5 py-0.5 text-[10px] ${cls}`}>{label}</span></td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300">{formatMontant(r.revenue, "")}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <ul className="sm:hidden space-y-2">
+                {detail.referrals.map((r) => {
+                  const [label, cls] = statusOf(r);
+                  return (
+                    <li key={r.user_id} className="border border-slate-800 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm text-slate-100 min-w-0 truncate">{r.company || "—"}{r.source === "admin" && <span className="ml-1.5 text-[9px] text-slate-500">(rattaché)</span>}</p>
+                        <span className={`border rounded px-1.5 py-0.5 text-[10px] shrink-0 ${cls}`}>{label}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">{r.phone || "—"} · inscrit le {new Date(r.created_at).toLocaleDateString("fr-FR")}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Paiements : <span className="font-mono text-slate-200">{formatMontant(r.revenue, DEVISE)}</span></p>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden sm:block overflow-x-auto border border-slate-800 rounded-md">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-[10px] uppercase tracking-wide text-slate-500 border-b border-slate-800">
+                      <th className="px-3 py-2 font-medium">Entreprise</th>
+                      <th className="px-3 py-2 font-medium">Téléphone</th>
+                      <th className="px-3 py-2 font-medium">Inscrit le</th>
+                      <th className="px-3 py-2 font-medium">Statut</th>
+                      <th className="px-3 py-2 font-medium text-right">Paiements</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.referrals.map((r) => {
+                      const [label, cls] = statusOf(r);
+                      return (
+                        <tr key={r.user_id} className="border-b border-slate-800/60">
+                          <td className="px-3 py-2 text-slate-200">{r.company || "—"}{r.source === "admin" && <span className="ml-1.5 text-[9px] text-slate-500">(rattaché)</span>}</td>
+                          <td className="px-3 py-2 text-slate-400">{r.phone || "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
+                          <td className="px-3 py-2"><span className={`border rounded px-1.5 py-0.5 text-[10px] ${cls}`}>{label}</span></td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-300">{formatMontant(r.revenue, "")}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
@@ -458,7 +467,7 @@ function AgentDetail({ agent, onClose, onChanged, onNewCode }) {
         <div>
           <h4 className="text-sm text-slate-300 mb-2">Commissions versées</h4>
           <form onSubmit={record} className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1.4fr_auto] gap-2 mb-3">
-            <input type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={Number(agent.balance) > 0 ? `Montant (solde : ${Math.round(agent.balance)})` : "Montant"} className={inputCls} />
+            <input type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Montant (FCFA)" inputMode="numeric" className={inputCls} />
             <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} className={inputCls} />
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (ex : Orange Money, octobre)" className={`${inputCls} col-span-2 sm:col-span-1`} />
             <button type="submit" disabled={saving} className="col-span-2 sm:col-span-1 bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 font-medium rounded-md px-4 py-2 text-sm flex items-center justify-center gap-1.5">
@@ -547,7 +556,7 @@ function AssignDialog({ agents, onClose, onDone }) {
           </>
         )}
         {error && <p className="text-xs text-rose-400">{error}</p>}
-        <button type="submit" disabled={saving || !userId || !agentId} className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-950 font-medium rounded-md py-2.5 text-sm flex items-center justify-center gap-2">
+        <button type="submit" disabled={saving || !userId || !agentId} className={`w-full ${btnPrimary}`}>
           {saving && <Loader2 size={14} className="animate-spin" />} Rattacher
         </button>
       </form>

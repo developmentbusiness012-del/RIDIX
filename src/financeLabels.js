@@ -14,7 +14,7 @@ export const EXPENSE_LABELS = {
 export const REVENUE_LABELS = { abonnement: "Abonnements", autre_revenu: "Autres revenus" };
 export const SOURCE_LABELS = {
   maketou: "Maketou (automatique)",
-  cash: "Encaissement manuel (espèces, Mobile Money…)",
+  cash: "Encaissement manuel",
   manual: "Saisie manuelle",
   commission: "Commission versée",
 };
