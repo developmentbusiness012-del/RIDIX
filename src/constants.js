@@ -107,6 +107,20 @@ export const PLANS = [
     ],
   },
   {
+    id: "premium_1m",
+    planKey: "1m",
+    label: "Premium — 1 mois",
+    price: "7 000 FCFA",
+    period: "/ 1 mois",
+    tagline: "Pour essayer Premium, sans engagement",
+    features: [
+      "Toutes les fonctionnalités Premium, sans limite d'entreprises",
+      "Stocks, crédits clients, analyse financière et dossier de financement PDF",
+      "Employés illimités, connectés via le code entreprise",
+      "Sans engagement : reconduisez-le quand vous voulez",
+    ],
+  },
+  {
     id: "premium",
     planKey: "2m",
     label: "Premium — 2 mois",

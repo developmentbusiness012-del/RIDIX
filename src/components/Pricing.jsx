@@ -31,7 +31,7 @@ export default function Pricing({ userId, onDone }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans px-4 py-10">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10">
           <h1 className="font-serif text-3xl text-slate-50 mb-2">Choisissez votre offre</h1>
           <p className="text-slate-400 text-sm">Vous pourrez changer d'offre à tout moment depuis les paramètres.</p>
@@ -43,7 +43,7 @@ export default function Pricing({ userId, onDone }) {
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-5 mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {PLANS.map((p) => (
             <div key={p.id} className={`rounded-lg border p-6 flex flex-col ${p.planKey ? (p.promo ? "border-amber-400 bg-amber-400/5" : "border-slate-700 bg-slate-900/60") : "border-slate-800 bg-slate-900/60"}`}>
               {p.promo && (

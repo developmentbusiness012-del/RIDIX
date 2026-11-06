@@ -437,11 +437,11 @@ export default function Landing({ onEnter }) {
           <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3 mb-3">Une offre pour chaque étape de votre croissance</h2>
           <p className="text-ink/50 text-[15px]">Ne perdez plus une vente faute de stock, ni un financement faute de dossier.</p>
         </Reveal>
-        <div className="grid md:grid-cols-3 gap-5 mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           {PLANS.map((p, i) => (
             <Reveal key={p.id} delay={i * 0.1}>
               <motion.div whileHover={{ y: -6 }}
-                className={`rounded-2xl border p-7 flex flex-col h-full transition-shadow hover:shadow-xl ${p.planKey ? "border-2 border-gold bg-gradient-to-b from-gold/5 to-transparent shadow-lg shadow-gold/10" : "border-ink/8 bg-white"}`}>
+                className={`rounded-2xl border p-6 flex flex-col h-full transition-shadow hover:shadow-xl ${p.planKey ? "border-2 border-gold bg-gradient-to-b from-gold/5 to-transparent shadow-lg shadow-gold/10" : "border-ink/8 bg-white"}`}>
                 {p.promo && (
                   <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide bg-rose-100 text-rose-600 rounded-full px-2.5 py-1 mb-3">
                     {p.promoLabel}

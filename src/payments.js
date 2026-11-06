@@ -10,7 +10,7 @@ async function callFunction(name) {
   return data;
 }
 
-// Crée un panier Maketou pour la formule choisie ("2m" ou "2y") et redirige
+// Crée un panier Maketou pour la formule choisie ("1m", "2m" ou "2y") et redirige
 // immédiatement l'utilisateur vers le paiement.
 export async function startPremiumCheckout(planKey = "2m") {
   const { data: { session } } = await supabase.auth.getSession();

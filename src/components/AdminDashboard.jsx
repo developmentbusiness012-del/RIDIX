@@ -25,7 +25,7 @@ const TABS = [
   { id: "messages", label: "Messages", icon: MessageCircle },
 ];
 
-const PLAN_DURATIONS = { premium_2m: 60, premium_2y: 730, premium_unlimited: null };
+const PLAN_DURATIONS = { premium_1m: 30, premium_2m: 60, premium_2y: 730, premium_unlimited: null };
 const monthRange = () => {
   const n = new Date();
   const f = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -367,6 +367,7 @@ function UsersPanel({ users, planUpdating, onPlan, onReset }) {
       >
         <option value="" disabled>{planUpdating === u.id ? "…" : "Modifier l'offre"}</option>
         <option value="freemium" disabled={u.plan === "freemium"}>Freemium</option>
+        <option value="premium_1m">Premium — 1 mois</option>
         <option value="premium_2m">Premium — 2 mois</option>
         <option value="premium_2y">Premium — 2 ans</option>
         <option value="premium_unlimited">Premium — illimité (admin)</option>

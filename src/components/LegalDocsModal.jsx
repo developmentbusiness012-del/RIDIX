@@ -61,7 +61,7 @@ function CguContent() {
 
       <H>4. Abonnement Premium</H>
       <Ul>
-        <li>L'abonnement Premium est proposé sous forme de formules à durée déterminée (actuellement 2 mois ou 2 ans), payables via la plateforme tierce Maketou.</li>
+        <li>L'abonnement Premium est proposé sous forme de formules à durée déterminée (actuellement 1 mois, 2 mois ou 2 ans), payables via la plateforme tierce Maketou.</li>
         <li>L'abonnement n'est pas reconduit automatiquement. À l'échéance, le compte repasse automatiquement en offre Freemium si aucun renouvellement n'est effectué.</li>
         <li>Les paiements sont traités par Maketou ; l'Éditeur n'a pas accès à vos données de paiement (numéro de carte, Mobile Money, etc.).</li>
         <li>Sauf erreur technique avérée, les paiements effectués ne sont pas remboursables.</li>
