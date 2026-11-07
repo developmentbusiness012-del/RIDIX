@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { Loader2, Building2, Users, LogIn, ArrowLeft, Eye, EyeOff, Globe, Phone, Gift, CheckCircle2 } from "lucide-react";
 import PhoneInput from "./PhoneInput";
+import BusinessTypePicker from "./BusinessTypePicker";
 import { normalizePhone, phoneToEmail, DIAL_CODES, DEFAULT_DIAL } from "../phoneAuth";
 import ForgotPassword from "./ForgotPassword";
 import LegalDocsModal from "./LegalDocsModal";
@@ -16,6 +17,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const [businessType, setBusinessType] = useState(null); // services | detail | gros
   const [employeeName, setEmployeeName] = useState("");
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("Cameroun");
@@ -60,6 +62,10 @@ export default function Auth({ initialMode = "signin", onBack }) {
       setError("Numéro de téléphone invalide. Vérifiez l'indicatif du pays et le numéro.");
       return;
     }
+    if (mode === "signup" && !businessType) {
+      setError("Choisissez le type de votre activité (services, vente au détail ou vente en gros).");
+      return;
+    }
     // Un code saisi doit être valable : sinon le commercial perdrait sa commission sans que personne ne le voie.
     if (mode === "signup" && referralCode) {
       const { data: refName, error: refErr } = await supabase.rpc("check_referral_code", { p_code: referralCode });
@@ -74,7 +80,7 @@ export default function Auth({ initialMode = "signin", onBack }) {
         const { error } = await supabase.auth.signUp({
           email: phoneToEmail(key),
           password,
-          options: { data: { account_type: "owner", company_name: companyName, country, phone: "+" + key, ...(referralCode ? { referral_code: referralCode } : {}) } },
+          options: { data: { account_type: "owner", company_name: companyName, country, phone: "+" + key, business_type: businessType, ...(referralCode ? { referral_code: referralCode } : {}) } },
         });
         if (error) throw error;
         try { localStorage.removeItem("ridix_ref"); } catch { /* ignoré */ }
@@ -170,6 +176,14 @@ export default function Auth({ initialMode = "signin", onBack }) {
                   className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm"
                   placeholder="Ex : Maison de Négoce Douala"
                 />
+              </div>
+            )}
+
+            {mode === "signup" && (
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5">Type d'activité</label>
+                <BusinessTypePicker value={businessType} onChange={setBusinessType} compact />
+                <p className="text-[11px] text-slate-500 mt-1.5">RIDIX adapte votre tableau de bord à votre métier. Modifiable plus tard.</p>
               </div>
             )}
 

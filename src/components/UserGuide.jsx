@@ -12,7 +12,11 @@ const SECTIONS = [
     items: [
       {
         q: "Comment créer mon compte ?",
-        a: "Sur l'écran d'accueil, choisissez « Créer une entreprise », indiquez le nom de votre entreprise, votre pays, votre numéro de téléphone et un mot de passe. Votre numéro sera votre identifiant de connexion. Aucune confirmation n'est nécessaire — vous accédez directement à votre tableau de bord.",
+        a: "Sur l'écran d'accueil, choisissez « Créer une entreprise », indiquez le nom de votre entreprise, le type de votre activité (prestation de services, vente au détail ou vente en gros), votre pays, votre numéro de téléphone et un mot de passe. Votre numéro sera votre identifiant de connexion. Aucune confirmation n'est nécessaire — vous accédez directement à votre tableau de bord.",
+      },
+      {
+        q: "À quoi sert le type d'activité ?",
+        a: "RIDIX adapte votre espace à votre métier. Prestation de services : factures à encaisser, prix moyen d'une prestation, charges fixes, sans stock. Vente au détail : ventes du jour, panier moyen, vente rapide, stock et alertes de rupture. Vente en gros : créances clients, dettes fournisseurs, marge brute et stock en volume. Les catégories d'écritures, les onglets et les alertes changent aussi. Vous pouvez le modifier dans Paramètres > Type d'activité ; vos écritures sont conservées.",
       },
       {
         q: "Comment un employé rejoint-il mon entreprise ?",

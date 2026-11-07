@@ -24,7 +24,7 @@ export const CATEGORIES_DEPENSE = [
 ];
 
 // Catégorie(s) de dépense assimilée(s) au coût des marchandises vendues (COGS) pour le compte de résultat.
-export const CATEGORIES_COGS = ["Achat marchandise"];
+export const CATEGORIES_COGS = ["Achat marchandise", "Sous-traitance"];
 // Mapping catégorie -> ligne du compte de résultat / cash-flow (Bloc 3 & 4).
 export const CATEGORIE_LIGNE = {
   "Vente locale": "ventes",
@@ -32,6 +32,20 @@ export const CATEGORIE_LIGNE = {
   "Prestation de service": "ventes",
   "Financement reçu": "financements_recus",
   "Autre recette": "autres_revenus",
+  // Catégories propres aux profils d'activité (voir businessProfiles.js)
+  "Consultation / Conseil": "ventes",
+  "Abonnement / Contrat récurrent": "ventes",
+  "Acompte client": "ventes",
+  "Vente comptoir": "ventes",
+  "Vente en ligne / réseaux sociaux": "ventes",
+  "Vente à crédit": "ventes",
+  "Vente en gros": "ventes",
+  "Vente à crédit (revendeur)": "ventes",
+  "Sous-traitance": "cogs",
+  "Déplacements & transport": "charges_exploitation",
+  "Matériel & logiciels": "charges_exploitation",
+  "Électricité, eau & internet": "charges_exploitation",
+  "Emballage & fournitures": "charges_exploitation",
   "Achat marchandise": "cogs",
   "Transport / Fret": "charges_exploitation",
   "Douane & taxes import": "charges_exploitation",

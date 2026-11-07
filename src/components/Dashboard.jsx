@@ -3,12 +3,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import {
-  Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2,
-  LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2,
-  Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle,
-  Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock, LineChart, Landmark,
-} from "lucide-react";
+import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Percent, Loader2, LogOut, UploadCloud, FileSpreadsheet, FileText, ChevronDown, Building2, Settings, Copy, Check, ShieldAlert, ShieldCheck, X, Users, MessageCircle, Boxes, HandCoins, Lock, Sparkles, Smartphone, BookOpen, Crown, CreditCard, Bell, Scale, FolderLock, LineChart, Landmark, AlertTriangle } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { TYPES_OP, PROFILS, DEVISES, PALETTE, MOIS_FR, formatMontant, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, PLANS, ROLES, roleLabel, getPermissions, cashAccountTypeLabel, cashAccountTypeIcon } from "../constants";
 import TransactionForm from "./TransactionForm";
@@ -52,6 +47,8 @@ import { exportExcel, exportPdf } from "../exportUtils";
 import { computeAnalysis } from "../analysisUtils";
 import { computeTreasury } from "../treasuryUtils";
 import { displayContact } from "../phoneAuth";
+import { getBusinessProfile, computeProfileKpis, computeProfileAlerts, BUSINESS_TYPE_LIST } from "../businessProfiles";
+import { BusinessTypeSetup, NewCompanyDialog } from "./BusinessTypePicker";
 import ChangePassword from "./ChangePassword";
 import { computeCapacity, computeReadiness } from "../financingUtils";
 import { startPremiumCheckout } from "../payments";
@@ -74,6 +71,10 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   const [cashAccounts, setCashAccounts] = useState([]);
   const [showCashAccountForm, setShowCashAccountForm] = useState(false);
   const [filterPeriode, setFilterPeriode] = useState("mois");
+  const [netLoaded, setNetLoaded] = useState(false); // entreprises confirmées par le serveur (évite un faux écran de choix du profil avec un cache ancien)
+  const [gateLater, setGateLater] = useState(false);
+  const [formPreset, setFormPreset] = useState(null); // { sens, categorie } : actions rapides du profil
+  const [biz, setBiz] = useState({ products: [], credits: [] }); // stock et créances, pour les indicateurs du profil
   const [filterType, setFilterType] = useState("tous");
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -104,6 +105,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
   useEffect(() => { setPlan(initialPlan); }, [initialPlan]);
 
   const company = companies.find((c) => c.id === activeId);
+  const bp = getBusinessProfile(company?.business_type); // vocabulaire, catégories, onglets, indicateurs du type d'activité
 
   // Préchargement en temps libre des onglets accessibles (sauf connexion lente / économie de données).
   useEffect(() => {
@@ -170,6 +172,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           setCompanies(comps);
           setActiveId((prev) => (prev && comps.some((c) => c.id === prev) ? prev : comps[0]?.id ?? null));
           cacheSet(companiesCacheKey, comps);
+          setNetLoaded(true);
         } else {
           throw error || new Error("empty");
         }
@@ -363,11 +366,11 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     setDialog({ type: "createCompany" });
   };
 
-  const submitNewCompany = async (name) => {
+  const submitNewCompany = async (name, businessType) => {
     const code = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
     const { data, error } = await supabase
       .from("companies")
-      .insert({ owner_id: session.user.id, name, profil: "mixte", devise_base: "XAF", code })
+      .insert({ owner_id: session.user.id, name, profil: "mixte", devise_base: "XAF", code, business_type: businessType })
       .select()
       .single();
     if (!error && data) {
@@ -561,6 +564,32 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
     return TYPES_OP.map((t) => ({ name: t.label, id: t.id, value: map[t.id] })).filter((x) => x.value > 0);
   }, [filtered]);
 
+  // Recettes par catégorie (graphique des profils services et détail)
+  const repartitionRecettes = useMemo(() => {
+    const map = {};
+    filtered.filter((t) => t.sens === "recette").forEach((t) => { map[t.categorie] = (map[t.categorie] || 0) + Number(t.montant_base); });
+    return Object.entries(map).map(([name, value], i) => ({ name, id: name, value, i })).sort((a, b) => b.value - a.value);
+  }, [filtered]);
+
+  // Stock et créances pour les indicateurs et alertes du profil (fonctions Premium)
+  useEffect(() => {
+    if (!activeId || plan !== "premium" || !bp.id || activeTab !== "bord") return;
+    let cancelled = false;
+    (async () => {
+      const [p, c] = await Promise.all([
+        supabase.from("products").select("id, name, quantity, cost_price, alert_threshold").eq("company_id", activeId),
+        supabase.from("credits").select("type, statut, montant, montant_paye, date_echeance").eq("company_id", activeId),
+      ]);
+      if (cancelled || p.error || c.error) return;
+      setBiz({ products: p.data || [], credits: c.data || [] });
+    })();
+    return () => { cancelled = true; };
+  }, [activeId, plan, bp.id, activeTab, transactions.length]);
+
+  const profileCtx = { filtered, transactions, biz, devise: company?.devise_base, premium: plan === "premium", kpis };
+  const profileKpis = useMemo(() => (bp.id && isOwner ? computeProfileKpis(bp.id, profileCtx) : []), [bp.id, isOwner, filtered, transactions, biz, plan, kpis, company?.devise_base]);
+  const profileAlerts = useMemo(() => (bp.id && isOwner ? computeProfileAlerts(bp.id, profileCtx) : []), [bp.id, isOwner, transactions, biz, plan, company?.devise_base]);
+
   if (loading || !company) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 gap-2">
@@ -608,13 +637,19 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
+            {bp.id && (
+              <button onClick={() => isOwner && setShowSettings(true)} title={isOwner ? "Modifier le type d'activité" : bp.label}
+                className={`flex items-center gap-1.5 text-xs bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-amber-300 ${isOwner ? "hover:border-amber-500/50" : "cursor-default"}`}>
+                <bp.icon size={13} /> {bp.label}
+              </button>
+            )}
             {!isOwner && (
               <span className="text-xs bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-slate-400">
                 {PROFILS.find((p) => p.id === company.profil)?.label} · {company.devise_base}
               </span>
             )}
-            <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2 transition-colors">
-              <Plus size={16} /> Écriture
+            <button onClick={() => { setFormPreset(null); setShowForm(true); }} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-medium text-sm rounded-md px-3 py-2 transition-colors">
+              <Plus size={16} /> {bp.newEntryLabel}
             </button>
             {isOwner && (
               <button onClick={() => setShowSettings(true)} className="text-slate-500 hover:text-slate-200 p-2" title="Paramètres">
@@ -642,16 +677,25 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {/* ---------- Navigation onglets ---------- */}
         <div className="flex gap-1 mb-6 border-b border-slate-800 overflow-x-auto">
-          {[
-            { id: "bord", label: "Tableau de bord", icon: null, locked: false },
-            { id: "stock", label: "Stock", icon: Boxes, locked: plan !== "premium" },
-            { id: "credits", label: "Crédits", icon: HandCoins, locked: plan !== "premium" },
-            ...(isOwner || perms.canViewBilan ? [{ id: "bilan", label: "Bilan", icon: Scale, locked: false }] : []),
-            ...(isOwner || perms.canViewIntelligence ? [{ id: "analyse", label: "Analyse", icon: LineChart, locked: plan !== "premium" }] : []),
-            ...(isOwner || perms.canViewBilan ? [{ id: "dataroom", label: "Documents", icon: FolderLock, locked: false }] : []),
-            ...(isOwner || perms.canViewIntelligence ? [{ id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" }] : []),
-            { id: "app", label: "App", icon: Smartphone, locked: false },
-          ].map((tab) => (
+          {(() => {
+            const all = {
+              bord: { id: "bord", label: "Tableau de bord", icon: null, locked: false },
+              stock: { id: "stock", label: bp.tabs.labels.stock || "Stock", icon: Boxes, locked: plan !== "premium" },
+              credits: { id: "credits", label: bp.tabs.labels.credits || "Crédits", icon: HandCoins, locked: plan !== "premium" },
+              bilan: { id: "bilan", label: "Bilan", icon: Scale, locked: false },
+              analyse: { id: "analyse", label: "Analyse", icon: LineChart, locked: plan !== "premium" },
+              dataroom: { id: "dataroom", label: "Documents", icon: FolderLock, locked: false },
+              intelligence: { id: "intelligence", label: "Intelligence", icon: Sparkles, locked: plan !== "premium" },
+              app: { id: "app", label: "App", icon: Smartphone, locked: false },
+            };
+            const visible = (id) => {
+              if (id === "stock") return bp.showStock;
+              if (id === "bilan" || id === "dataroom") return isOwner || perms.canViewBilan;
+              if (id === "analyse" || id === "intelligence") return isOwner || perms.canViewIntelligence;
+              return true;
+            };
+            return bp.tabs.order.filter(visible).map((id) => all[id]);
+          })().map((tab) => (
             <button key={tab.id} onClick={() => goTab(tab.id)}
               onPointerEnter={() => prefetchPanel(tab.id)} onTouchStart={() => prefetchPanel(tab.id)}
               className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2.5 border-b-2 -mb-px whitespace-nowrap transition-colors ${(pendingTab ?? activeTab) === tab.id ? "border-amber-400 text-slate-50" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
@@ -715,7 +759,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
             <div className="flex gap-3 overflow-x-auto px-4 py-3">
               {transactions.slice(0, 8).map((t) => (
                 <div key={t.id} className="shrink-0 border border-dashed rounded-md px-3 py-1.5 text-xs flex items-center gap-2" style={{ borderColor: PALETTE[t.type_op] }}>
-                  <span className="font-mono uppercase tracking-wide" style={{ color: PALETTE[t.type_op] }}>{t.type_op}</span>
+                  <span className="font-mono uppercase tracking-wide" style={{ color: PALETTE[t.type_op] }}>{bp.showOpType ? t.type_op : String(t.categorie || "").slice(0, 14)}</span>
                   <span className="text-slate-400">{t.date}</span>
                   <span className={t.sens === "recette" ? "text-emerald-400 font-mono" : "text-rose-400 font-mono"}>
                     {t.sens === "recette" ? "+" : "−"}{formatMontant(t.montant, t.devise)}
@@ -738,7 +782,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 mb-5">
-          <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+          <div className={`flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden ${bp.showOpType ? "" : "hidden"}`} style={{ scrollbarWidth: "none" }}>
             <button onClick={() => setFilterType("tous")}
               className={`shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filterType === "tous" ? "bg-slate-100 text-slate-900 border-slate-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>
               Tous profils
@@ -765,11 +809,51 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
 
         {/* ---------- KPI ---------- */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <KpiCard label={isOwner ? "Chiffre d'affaires" : "Vos recettes"} value={formatMontant(kpis.ca, company.devise_base)} icon={Wallet} accent="border-l-emerald-400" />
+          <KpiCard label={isOwner ? bp.revenueKpi : "Vos recettes"} value={formatMontant(kpis.ca, company.devise_base)} icon={Wallet} accent="border-l-emerald-400" />
           <KpiCard label={isOwner ? "Dépenses" : "Vos dépenses"} value={formatMontant(kpis.dep, company.devise_base)} icon={TrendingDown} accent="border-l-rose-400" />
           <KpiCard label={isOwner ? "Profit net" : "Votre solde net"} value={formatMontant(kpis.profit, company.devise_base)} icon={TrendingUp} accent={kpis.profit >= 0 ? "border-l-amber-400" : "border-l-rose-500"} />
           <KpiCard label="Marge" value={`${kpis.marge.toFixed(1)} %`} icon={Percent} accent="border-l-indigo-400" />
         </div>
+
+        {/* ---------- Spécifique au type d'activité : actions rapides, indicateurs métier, points d'attention ---------- */}
+        {bp.id && (
+          <>
+            {bp.quickActions.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {bp.quickActions.map((a) => {
+                  const tones = { emerald: "border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10", rose: "border-rose-500/40 text-rose-300 hover:bg-rose-500/10", amber: "border-amber-500/40 text-amber-300 hover:bg-amber-500/10" };
+                  return (
+                    <button key={a.id}
+                      onClick={() => { if (a.entry) { setFormPreset(a.entry); setShowForm(true); } else if (a.tab) goTab(a.tab); }}
+                      className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center border rounded-lg px-2 py-3 text-xs active:scale-[0.98] transition ${tones[a.tone]}`}>
+                      <a.icon size={17} /> <span className="leading-tight">{a.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {profileKpis.length > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                {profileKpis.map((k) => (
+                  <KpiCard key={k.id} label={k.label} value={k.value} sub={k.sub} icon={k.icon} accent={k.accent} locked={k.locked}
+                    onClick={k.tab ? () => (k.locked ? changePlan("premium") : goTab(k.tab)) : undefined} />
+                ))}
+              </div>
+            )}
+
+            {profileAlerts.length > 0 && (
+              <div className="mb-6 space-y-2">
+                {profileAlerts.map((al) => (
+                  <button key={al.id} onClick={() => goTab(al.tab)}
+                    className={`w-full text-left flex items-start gap-2.5 border rounded-lg px-3.5 py-2.5 text-xs ${al.tone === "rose" ? "border-rose-800/60 bg-rose-950/30 text-rose-200" : "border-amber-800/60 bg-amber-950/30 text-amber-200"}`}>
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{al.text}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         {/* ---------- Où est votre argent ---------- */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4 mb-6">
@@ -846,14 +930,14 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800 rounded-md p-4">
-            <h3 className="font-serif text-sm text-slate-300 mb-3">Répartition par profil</h3>
-            {repartitionType.length === 0 ? (
+            <h3 className="font-serif text-sm text-slate-300 mb-3">{bp.recetteChart === "categorie" ? (bp.id === "services" ? "Vos prestations par catégorie" : "Vos ventes par catégorie") : "Répartition par profil"}</h3>
+            {(bp.recetteChart === "categorie" ? repartitionRecettes : repartitionType).length === 0 ? (
               <p className="text-xs text-slate-500 mt-8 text-center">Aucune donnée sur la période</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={repartitionType} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={3}>
-                    {repartitionType.map((entry) => <Cell key={entry.id} fill={PALETTE[entry.id]} stroke="none" />)}
+                  <Pie data={bp.recetteChart === "categorie" ? repartitionRecettes : repartitionType} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={3}>
+                    {(bp.recetteChart === "categorie" ? repartitionRecettes : repartitionType).map((entry, i) => <Cell key={entry.id} fill={bp.recetteChart === "categorie" ? ["#34d399", "#818cf8", "#fbbf24", "#fb7185", "#38bdf8", "#a78bfa"][i % 6] : PALETTE[entry.id]} stroke="none" />)}
                   </Pie>
                   <Tooltip formatter={(v) => formatMontant(v, company.devise_base)} contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -888,7 +972,7 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-y border-slate-800">
                   <th className="px-4 py-2 font-medium">Date</th>
-                  <th className="px-2 py-2 font-medium">Profil</th>
+                  {bp.showOpType && <th className="px-2 py-2 font-medium">Profil</th>}
                   <th className="px-2 py-2 font-medium">Catégorie</th>
                   <th className="px-2 py-2 font-medium">Libellé</th>
                   <th className="px-2 py-2 font-medium text-right">Montant</th>
@@ -898,8 +982,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-slate-500 text-xs py-8">
-                    Le registre est vide pour cette sélection — ajoutez ou importez une écriture pour commencer.
+                  <tr><td colSpan={bp.showOpType ? 7 : 6} className="text-center text-slate-500 text-xs py-8">
+                    {bp.emptyHint}
                   </td></tr>
                 )}
                 {filtered.map((t) => (
@@ -910,11 +994,13 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
                         <span title="En attente de synchronisation" className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle" />
                       )}
                     </td>
-                    <td className="px-2 py-2">
-                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border" style={{ color: PALETTE[t.type_op], borderColor: PALETTE[t.type_op] }}>
-                        {t.type_op}
-                      </span>
-                    </td>
+                    {bp.showOpType && (
+                      <td className="px-2 py-2">
+                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border" style={{ color: PALETTE[t.type_op], borderColor: PALETTE[t.type_op] }}>
+                          {t.type_op}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-2 py-2 text-slate-300">{t.categorie}</td>
                     <td className="px-2 py-2 text-slate-400">{t.libelle || "—"}</td>
                     <td className={`px-2 py-2 text-right font-mono ${t.sens === "recette" ? "text-emerald-400" : "text-rose-400"}`}>
@@ -1003,7 +1089,8 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
         <TransactionForm
           deviseBase={company.devise_base} plan={plan} companyId={activeId}
           cashAccounts={cashAccounts} onAddCashAccount={addCashAccount}
-          onClose={() => setShowForm(false)} onSubmit={addTransaction}
+          profile={bp.id ? bp : null} preset={formPreset}
+          onClose={() => { setShowForm(false); setFormPreset(null); }} onSubmit={addTransaction}
         />
       )}
       {showImport && <ImportCsv deviseBase={company.devise_base} onClose={() => setShowImport(false)} onImport={importTransactions} />}
@@ -1032,13 +1119,19 @@ export default function Dashboard({ session, role, plan: initialPlan, premiumExp
       {showWelcome && <WelcomeModal role={role} onClose={dismissWelcome} />}
 
       {dialog?.type === "createCompany" && (
-        <PromptDialog
-          title="Nouvelle entreprise"
-          label="Nom de l'entreprise"
-          defaultValue="Nouvelle entreprise"
-          confirmLabel="Créer"
-          onSubmit={submitNewCompany}
-          onCancel={() => setDialog(null)}
+        <NewCompanyDialog onSubmit={submitNewCompany} onCancel={() => setDialog(null)} />
+      )}
+      {/* Entreprise sans type d'activité (créée avant cette option) : choix une fois, modifiable ensuite */}
+      {isOwner && company && !company.business_type && netLoaded && !gateLater && (
+        <BusinessTypeSetup
+          companyName={company.name}
+          onSave={async (type) => {
+            const { data, error } = await supabase.from("companies").update({ business_type: type }).eq("id", company.id).select().single();
+            if (error || !data) return error || new Error("update failed");
+            setCompanies((prev) => prev.map((c) => (c.id === company.id ? data : c)));
+            return null;
+          }}
+          onLater={() => setGateLater(true)}
         />
       )}
       {dialog?.type === "deleteAccount" && (
@@ -1160,9 +1253,18 @@ function SettingsPanel({ company, plan, session, premiumExpiresAt, employees, on
 
               <div>
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">Entreprise</p>
+                <div className="mb-2">
+                  <label className="text-[11px] text-slate-500 block mb-1">Type d'activité</label>
+                  <select value={company.business_type || ""} onChange={(e) => e.target.value && onUpdateCompany({ business_type: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
+                    {!company.business_type && <option value="">— À choisir —</option>}
+                    {BUSINESS_TYPE_LIST.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                  <p className="text-[10px] text-slate-600 mt-1">Adapte l'accueil, les catégories, les indicateurs et les alertes à votre métier. Vos écritures existantes sont conservées.</p>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] text-slate-500 block mb-1">Profil</label>
+                    <label className="text-[11px] text-slate-500 block mb-1">Orientation commerciale</label>
                     <select value={company.profil} onChange={(e) => onUpdateCompany({ profil: e.target.value })}
                       className="w-full bg-slate-800 border border-slate-700 text-sm rounded-md px-3 py-2 text-slate-200">
                       {PROFILS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -1325,14 +1427,16 @@ function PanelLoading() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, accent }) {
+function KpiCard({ label, value, icon: Icon, accent, sub, locked = false, onClick }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className={`bg-slate-900/60 border border-slate-800 border-l-4 ${accent} rounded-md p-4`}>
-      <div className="flex items-center justify-between mb-2">
+    <Tag onClick={onClick} className={`bg-slate-900/60 border border-slate-800 border-l-4 ${accent} rounded-md p-4 text-left w-full flex flex-col items-stretch ${onClick ? "hover:bg-slate-900 active:bg-slate-800/60 transition-colors" : ""}`}>
+      <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-xs text-slate-400 uppercase tracking-wide">{label}</span>
-        <Icon size={15} className="text-slate-500" />
+        {locked ? <Lock size={13} className="text-amber-400/80 shrink-0" /> : <Icon size={15} className="text-slate-500 shrink-0" />}
       </div>
-      <p className="font-mono text-lg sm:text-xl text-slate-50 tabular-nums truncate">{value}</p>
-    </div>
+      <p className={`font-mono text-lg sm:text-xl tabular-nums truncate ${locked ? "text-amber-300/80" : "text-slate-50"}`}>{value}</p>
+      {sub && <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{sub}</p>}
+    </Tag>
   );
 }

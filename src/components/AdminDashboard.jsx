@@ -10,6 +10,7 @@ import { supabase } from "../supabaseClient";
 import { InfoDialog, ConfirmDialog } from "./Dialogs";
 import { displayContact } from "../phoneAuth";
 import { formatMontant } from "../constants";
+import { BUSINESS_TYPES } from "../businessProfiles";
 import { Kpi, Card, Chips, Badge, inputCls } from "./AdminUI";
 
 // Les onglets lourds sont chargés à la demande : l'espace admin s'ouvre plus vite.
@@ -212,6 +213,13 @@ export default function AdminDashboard({ onBack }) {
 //  Aperçu : l'essentiel d'un coup d'œil
 // ======================================================================================
 function Overview({ stats, fin, onNavigate }) {
+  const [types, setTypes] = useState(null); // entreprises par type d'activité
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.rpc("admin_business_type_counts");
+      if (!error) setTypes(data);
+    })();
+  }, []);
   const conversion = stats.total_owners > 0 ? (stats.premium / stats.total_owners) * 100 : 0;
   const chartData = (stats.signups_last_30_days || []).map((d) => ({ date: d.date.slice(5), inscriptions: d.count }));
   const countries = stats.by_country || [];
@@ -258,6 +266,26 @@ function Overview({ stats, fin, onNavigate }) {
           ))}
         </div>
       </Card>
+
+      {types && (
+        <Card title="Entreprises par type d'activité" icon={Building2}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {["services", "detail", "gros"].map((id) => {
+              const t = BUSINESS_TYPES[id];
+              return (
+                <div key={id} className="border border-slate-800 rounded-lg px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mb-1"><t.icon size={13} className="text-amber-400" /> <span className="truncate">{t.label}</span></div>
+                  <p className="font-mono text-xl text-slate-50 tabular-nums">{types[id]}</p>
+                </div>
+              );
+            })}
+            <div className="border border-dashed border-slate-700 rounded-lg px-3 py-2.5">
+              <div className="text-[11px] text-slate-500 mb-1">Non renseigné</div>
+              <p className="font-mono text-xl text-slate-400 tabular-nums">{types.unset}</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title="Inscriptions — 30 derniers jours">

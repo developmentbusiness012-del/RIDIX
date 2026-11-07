@@ -1,9 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  Ship, Package, Store, Wallet, TrendingUp, LineChart, Landmark,
-  UploadCloud, Users, Building2, Check, ArrowRight, ShieldCheck,
-  Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout, Gauge, Scale, FolderLock,
-} from "lucide-react";
+import { Ship, Package, Store, Wallet, TrendingUp, LineChart, Landmark, UploadCloud, Users, Building2, Check, ArrowRight, ShieldCheck, Boxes, HandCoins, Lock, Sparkles, FileText, Crown, Eye, WifiOff, Sprout, Gauge, Scale, FolderLock, Briefcase, ShoppingBag, Warehouse } from "lucide-react";
 import { PLANS, EMPLOYEE_RESTRICTIONS, EMPLOYEE_ALLOWED, DEVISES } from "../constants";
 import InstallAppSection from "./InstallAppSection";
 import InstallFloatingCTA from "./InstallFloatingCTA";
@@ -243,8 +239,8 @@ export default function Landing({ onEnter }) {
           </h2>
           <p className="text-ink/60 text-[15px] leading-relaxed mb-4">
             Du marché de Douala aux comptoirs d'import-export, RIDIX parle la langue du commerce local dès le
-            départ : FCFA en devise de référence, profils import/export natifs, une interface qui fonctionne même
-            avec une connexion capricieuse.
+            départ : FCFA en devise de référence, un tableau de bord qui s'adapte à votre métier (services, détail,
+            gros), une interface qui fonctionne même avec une connexion capricieuse.
           </p>
           <p className="text-ink/60 text-[15px] leading-relaxed">
             Et quand vient le moment de solliciter une banque ou une institution de microfinance locale, votre
@@ -338,25 +334,45 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
-      {/* ---------- Profils ---------- */}
+      {/* ---------- Profils d'activité ---------- */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
         <Reveal className="text-center mb-12">
-          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">Avantages</span>
-          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3">Un seul outil, tous les profils</h2>
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-forest">Votre métier, votre RIDIX</span>
+          <h2 className="font-serif font-semibold text-3xl sm:text-4xl text-ink mt-3 mb-3">Un tableau de bord taillé pour votre activité</h2>
+          <p className="text-ink/50 text-[15px] max-w-xl mx-auto">
+            À la création de votre entreprise, choisissez votre profil : RIDIX adapte l'accueil, les catégories, les indicateurs et les alertes.
+          </p>
         </Reveal>
         <div className="grid sm:grid-cols-3 gap-5">
           {[
-            { icon: Store, title: "Commerçant local", desc: "Suivez vos ventes et dépenses courantes, sans complexité inutile." },
-            { icon: Package, title: "Importateur", desc: "Coûts d'achat, douane, transport et marges à l'unité près." },
-            { icon: Ship, title: "Exportateur", desc: "Ventes à l'international en devises multiples, converties automatiquement." },
+            {
+              icon: Briefcase, title: "Prestation de services",
+              desc: "Coiffure, consulting, transport, réparation, formation…",
+              points: ["Prestations facturées et prix moyen", "Factures à encaisser et retards à relancer", "Charges fixes face aux recettes du mois"],
+            },
+            {
+              icon: ShoppingBag, title: "Vente au détail",
+              desc: "Boutique, quincaillerie, pharmacie, alimentation…",
+              points: ["Ventes du jour et panier moyen", "Vente rapide en un geste", "Valeur du stock et alertes de rupture"],
+            },
+            {
+              icon: Warehouse, title: "Vente en gros",
+              desc: "Grossiste, distribution, import-export, négoce…",
+              points: ["Créances clients et dettes fournisseurs", "Marge brute et stock en volume", "Import / export et multi-devises"],
+            },
           ].map((p, i) => (
             <Reveal key={p.title} delay={i * 0.1}>
-              <motion.div whileHover={{ y: -6 }} className="border border-ink/8 rounded-2xl p-7 bg-white text-center shadow-sm hover:shadow-xl transition-shadow h-full">
-                <div className="w-12 h-12 rounded-xl bg-forest/10 flex items-center justify-center mx-auto mb-4">
+              <motion.div whileHover={{ y: -6 }} className="border border-ink/8 rounded-2xl p-7 bg-white shadow-sm hover:shadow-xl transition-shadow h-full">
+                <div className="w-12 h-12 rounded-xl bg-forest/10 flex items-center justify-center mb-4">
                   <p.icon size={22} className="text-forest" />
                 </div>
-                <h3 className="font-serif text-base text-ink mb-2">{p.title}</h3>
-                <p className="text-[13px] text-ink/50 leading-relaxed">{p.desc}</p>
+                <h3 className="font-serif text-lg text-ink mb-1">{p.title}</h3>
+                <p className="text-[13px] text-ink/50 leading-relaxed mb-4">{p.desc}</p>
+                <ul className="space-y-2">
+                  {p.points.map((pt) => (
+                    <li key={pt} className="flex items-start gap-2 text-[13px] text-ink/70"><Check size={14} className="text-forest mt-0.5 shrink-0" /> {pt}</li>
+                  ))}
+                </ul>
               </motion.div>
             </Reveal>
           ))}

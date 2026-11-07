@@ -3,6 +3,7 @@ import { computeDSCR } from "./financingUtils";
 import { computeTreasury, computeMonthlyTreasury, treasuryByType } from "./treasuryUtils";
 import { liabilityCategoryLabel, cashAccountTypeLabel } from "./constants";
 import { SOURCE_LABELS, categoryLabel } from "./financeLabels";
+import { businessTypeLabel } from "./businessProfiles";
 
 // ======================================================================================
 //  Rapports téléchargeables RIDIX
@@ -207,7 +208,7 @@ export async function exportPdf(transactions, company, kpis, opts = {}) {
   doc.text(company.name, 14, 26);
   doc.setFontSize(9);
   doc.setTextColor(...C.light);
-  doc.text(`Période : ${ctx.periodLabel}${ctx.typeLabel ? `  ·  Profil : ${ctx.typeLabel}` : ""}  ·  Devise : ${devise}  ·  Généré le ${frDate()}`, 14, 35);
+  doc.text(`${businessTypeLabel(company.business_type) ? `${businessTypeLabel(company.business_type)}  ·  ` : ""}Période : ${ctx.periodLabel}${ctx.typeLabel ? `  ·  Profil : ${ctx.typeLabel}` : ""}  ·  Devise : ${devise}  ·  Généré le ${frDate()}`, 14, 35);
   flow.y = 52;
 
   // 1. Synthèse
@@ -400,7 +401,7 @@ export async function exportDossierFinancement(transactions, products, credits, 
   doc.text(company.name, 14, 34);
   doc.setFontSize(10);
   doc.setTextColor(...C.light);
-  doc.text(`Profil d'activité : ${company.profil || "—"}  ·  Devise de référence : ${devise}`, 14, 44);
+  doc.text(`Activité : ${businessTypeLabel(company.business_type) || "—"}  ·  Devise de référence : ${devise}`, 14, 44);
   doc.text(`Dossier généré le ${frDate(today)}`, 14, 51);
 
   let y = 74;

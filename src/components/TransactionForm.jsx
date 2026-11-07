@@ -6,10 +6,17 @@ import { DEVISES, TYPES_OP, CATEGORIES_RECETTE, CATEGORIES_DEPENSE, CASH_ACCOUNT
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionForm({ deviseBase, plan, companyId, cashAccounts = [], onAddCashAccount, onClose, onSubmit }) {
-  const [sens, setSens] = useState("recette");
+export default function TransactionForm({ deviseBase, plan, companyId, cashAccounts = [], onAddCashAccount, onClose, onSubmit, profile = null, preset = null }) {
+  // Catégories et vocabulaire du profil d'activité (services / détail / gros) ; génériques sans profil
+  const recetteCats = profile?.categoriesRecette || CATEGORIES_RECETTE;
+  const depenseCats = profile?.categoriesDepense || CATEGORIES_DEPENSE;
+  const incomeLabel = profile?.incomeLabel || "Recette";
+  const showOpType = profile ? profile.showOpType !== false : true;
+  const initialSens = preset?.sens || "recette";
+  const initialCats = initialSens === "recette" ? recetteCats : depenseCats;
+  const [sens, setSens] = useState(initialSens);
   const [typeOp, setTypeOp] = useState("local");
-  const [categorie, setCategorie] = useState(CATEGORIES_RECETTE[0]);
+  const [categorie, setCategorie] = useState(preset?.categorie && initialCats.includes(preset.categorie) ? preset.categorie : initialCats[0]);
   const [libelle, setLibelle] = useState("");
   const [date, setDate] = useState(todayISO());
   const [montant, setMontant] = useState("");
@@ -41,7 +48,7 @@ export default function TransactionForm({ deviseBase, plan, companyId, cashAccou
     if (!accountId && cashAccounts.length > 0) setAccountId(cashAccounts[0].id);
   }, [cashAccounts, accountId]);
 
-  const categories = sens === "recette" ? CATEGORIES_RECETTE : CATEGORIES_DEPENSE;
+  const categories = sens === "recette" ? recetteCats : depenseCats;
   const montantBase = (Number(montant) || 0) * (txDevise === deviseBase ? 1 : Number(taux) || 0);
   const selectedProduct = products.find((p) => p.id === productId);
 
@@ -92,25 +99,29 @@ export default function TransactionForm({ deviseBase, plan, companyId, cashAccou
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <button type="button" onClick={() => { setSens("recette"); setCategorie(CATEGORIES_RECETTE[0]); }}
+          <button type="button" onClick={() => { setSens("recette"); setCategorie(recetteCats[0]); }}
             className={`py-2 rounded-md text-sm border ${sens === "recette" ? "bg-emerald-400/10 border-emerald-400 text-emerald-300" : "border-slate-700 text-slate-400"}`}>
-            Recette
+            {incomeLabel}
           </button>
-          <button type="button" onClick={() => { setSens("depense"); setCategorie(CATEGORIES_DEPENSE[0]); }}
+          <button type="button" onClick={() => { setSens("depense"); setCategorie(depenseCats[0]); }}
             className={`py-2 rounded-md text-sm border ${sens === "depense" ? "bg-rose-400/10 border-rose-400 text-rose-300" : "border-slate-700 text-slate-400"}`}>
             Dépense
           </button>
         </div>
 
-        <label className="block text-xs text-slate-400 mb-1">Profil de l'opération</label>
-        <div className="grid grid-cols-4 gap-1.5 mb-3">
-          {TYPES_OP.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTypeOp(t.id)}
-              className={`flex flex-col items-center gap-1 py-2 rounded-md border text-[11px] ${typeOp === t.id ? "border-amber-400 text-amber-300 bg-amber-400/10" : "border-slate-700 text-slate-400"}`}>
-              <t.icon size={14} /> {t.label}
-            </button>
-          ))}
-        </div>
+        {showOpType && (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">Profil de l'opération</label>
+            <div className="grid grid-cols-4 gap-1.5 mb-3">
+              {TYPES_OP.map((t) => (
+                <button key={t.id} type="button" onClick={() => setTypeOp(t.id)}
+                  className={`flex flex-col items-center gap-1 py-2 rounded-md border text-[11px] ${typeOp === t.id ? "border-amber-400 text-amber-300 bg-amber-400/10" : "border-slate-700 text-slate-400"}`}>
+                  <t.icon size={14} /> {t.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <label className="block text-xs text-slate-400 mb-1">Catégorie</label>
         <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm mb-3">
@@ -118,7 +129,7 @@ export default function TransactionForm({ deviseBase, plan, companyId, cashAccou
         </select>
 
         <label className="block text-xs text-slate-400 mb-1">Libellé</label>
-        <input value={libelle} onChange={(e) => setLibelle(e.target.value)} placeholder="Ex : Conteneur cacao — client Rotterdam"
+        <input value={libelle} onChange={(e) => setLibelle(e.target.value)} placeholder={profile?.entryPlaceholder || "Ex : Conteneur cacao — client Rotterdam"}
           className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm mb-3" />
 
         <label className="flex items-center gap-1.5 text-xs text-slate-400 mb-1"><Wallet size={12} /> Compte concerné</label>
